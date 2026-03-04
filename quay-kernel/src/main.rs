@@ -1,12 +1,15 @@
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
 
 mod serial;
+mod x86;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
 use limine::request::{EfiMemoryMapRequest, FramebufferRequest, HhdmRequest, StackSizeRequest};
 use limine::BaseRevision;
+use log::{error, info, trace};
 
 /// Set the Limine base revision.
 /// Without this tag, the bootloader will assume revision 0, which we don't want.
@@ -38,7 +41,17 @@ static FRAMEBUFFER_REQUEST: FramebufferRequest = FramebufferRequest::with_revisi
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
     // Initialization sequence start!
-    println!("Quay is booted up!");
+    serial::init_logger();
+    info!("Quay is booted up!");
+
+    x86::gdt::init_gdt();
+    trace!("GDT and TSS loaded successfully!");
+
+    x86::interrupt::init_idt();
+    trace!("IDT loaded successfully!");
+
+    x86_64::instructions::interrupts::int3();
+    trace!("Interrupts checked! Working fine like wine.");
 
     // Get the response from the framebuffer request.
     let Some(response) = FRAMEBUFFER_REQUEST.get_response() else {
@@ -71,14 +84,14 @@ pub extern "C" fn _start() -> ! {
 
     // The kernel must never return. If it does, the CPU will like to execute garbage memory and
     // triple fault.
-    println!("Initialization complete! Quay is up and running!");
+    info!("Initialization complete! Quay is up and running!");
     halt_and_catch_fire();
 }
 
 /// Custom panic handler. For now, just loops forever until we have proper handling.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("Kernel panic: {}", info);
+    error!("Kernel panic: {}", info);
     halt_and_catch_fire();
 }
 
