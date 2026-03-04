@@ -7,8 +7,8 @@ mod x86;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
-use limine::request::{EfiMemoryMapRequest, FramebufferRequest, HhdmRequest, StackSizeRequest};
 use limine::BaseRevision;
+use limine::request::{FramebufferRequest, HhdmRequest, MemoryMapRequest, StackSizeRequest};
 use log::{error, info, trace};
 
 /// Set the Limine base revision.
@@ -28,10 +28,10 @@ static STACK_SIZE_REQUEST: StackSizeRequest =
 #[unsafe(link_section = ".requests")]
 static HHDM_REQUEST: HhdmRequest = HhdmRequest::with_revision(5);
 
-/// Request the complete EFI Memory Map.
+/// Request the complete Memory Map.
 #[used]
 #[unsafe(link_section = ".requests")]
-static EFI_MEMORY_MAP_REQUEST: EfiMemoryMapRequest = EfiMemoryMapRequest::with_revision(5);
+static MEMORY_MAP_REQUEST: MemoryMapRequest = MemoryMapRequest::with_revision(5);
 
 /// Request a framebuffer for graphics output.
 #[used]
