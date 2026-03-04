@@ -1,0 +1,25 @@
+[package]
+name = "quay-kernel"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "quay-kernel"
+path = "src/main.rs"
+harness = false
+
+[dependencies]
+# Bootloader
+limine = { version = "0.5.0", features = ["uuid"] }
+
+# Data Types
+uuid = { version = "1.21.0", default-features = false, features = []}
+
+# Communications
+uart_16550 = { version = "0.4.0", features = ["nightly"] }
+
+# Parallelism
+spin = { version = "0.10.0" }
+
+# Utilities
+lazy_static = { version = "1.5.0", features = ["spin_no_std"] }

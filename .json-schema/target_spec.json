@@ -1,0 +1,1361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TargetSpecJson",
+  "type": "object",
+  "properties": {
+    "abi": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Abi"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "abi-return-struct-as-int": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "allow-asm": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "allows-weak-linkage": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "arch": {
+      "$ref": "#/$defs/Arch"
+    },
+    "archive-format": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "asm-args": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "atomic-cas": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "binary-format": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BinaryFormat"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "c-enum-min-bits": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
+    "code-model": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CodeModel"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cpu": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "crt-objects-fallback": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LinkSelfContainedDefault"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "crt-static-allows-dylibs": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "crt-static-default": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "crt-static-respected": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "data-layout": {
+      "type": "string"
+    },
+    "debuginfo-kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DebuginfoKind"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "default-codegen-backend": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "default-codegen-units": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
+    "default-dwarf-version": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0
+    },
+    "default-sanitizers": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/SanitizerSet"
+      }
+    },
+    "default-uwtable": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "default-visibility": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SymbolVisibility"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "direct-access-external-data": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "disable-redzone": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "dll-prefix": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "dll-suffix": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "dll-tls-export": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "dynamic-linking": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "eh-frame-header": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "emit-debug-gdb-scripts": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "entry-abi": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExternAbi"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "entry-name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "env": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Env"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "exe-suffix": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "executables": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "features": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "frame-pointer": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FramePointer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "function-sections": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "generate-arange-section": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "has-rpath": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "has-thread-local": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "has-thumb-interworking": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "is-like-aix": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "is-like-android": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "is-like-darwin": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "is-like-gpu": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "is-like-msvc": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "is-like-solaris": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "is-like-vexos": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "is-like-wasm": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "is-like-windows": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "late-link-args": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "late-link-args-dynamic": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "late-link-args-static": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "limit-rdylib-exports": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "link-env": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "link-env-remove": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "link-script": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "link-self-contained": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LinkSelfContainedComponentsWrapper"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "linker": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "linker-flavor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LinkerFlavor"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "linker-is-gnu": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "lld-flavor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LldFlavor"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "llvm-abiname": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "llvm-args": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "llvm-floatabi": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FloatAbi"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "llvm-mcount-intrinsic": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "llvm-target": {
+      "type": "string"
+    },
+    "main-needs-argc-argv": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "max-atomic-width": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
+    "merge-functions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MergeFunctions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "metadata": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TargetSpecJsonMetadata"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "min-atomic-width": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
+    "min-global-align": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
+    "need-explicit-cpu": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "no-builtins": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "no-default-libraries": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "obj-is-bitcode": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "only-cdylib": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "os": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Os"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "override-export-symbols": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "panic-strategy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PanicStrategy"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "plt-by-default": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "position-independent-executables": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "post-link-args": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "post-link-objects": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "post-link-objects-fallback": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "pre-link-args": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "pre-link-objects": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "pre-link-objects-fallback": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "relax-elf-relocations": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "relocation-model": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RelocModel"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "relro-level": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RelroLevel"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "requires-lto": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "requires-uwtable": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "rustc-abi": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RustcAbi"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "simd-types-indirect": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "singlethread": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "small-data-threshold-support": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SmallDataThresholdSupport"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "split-debuginfo": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SplitDebuginfo"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "stack-probes": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StackProbeType"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "static-initializer-must-be-acyclic": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "static-position-independent-executables": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "staticlib-prefix": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "staticlib-suffix": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "supported-sanitizers": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/SanitizerSet"
+      }
+    },
+    "supported-split-debuginfo": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/SplitDebuginfo"
+      }
+    },
+    "supports-stack-protector": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "supports-xray": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "target-c-int-width": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    },
+    "target-endian": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Endian"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "target-family": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TargetFamiliesJson"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "target-mcount": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "target-pointer-width": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    },
+    "tls-model": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TlsModel"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "trap-unreachable": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "use-ctors-section": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "vendor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "llvm-target",
+    "target-pointer-width",
+    "data-layout",
+    "arch"
+  ],
+  "$defs": {
+    "Abi": {
+      "type": "string"
+    },
+    "Arch": {
+      "type": "string"
+    },
+    "BinaryFormat": {
+      "type": "string",
+      "enum": [
+        "coff",
+        "elf",
+        "mach-o",
+        "wasm",
+        "xcoff"
+      ]
+    },
+    "CodeModel": {
+      "type": "string",
+      "enum": [
+        "tiny",
+        "small",
+        "kernel",
+        "medium",
+        "large"
+      ]
+    },
+    "DebuginfoKind": {
+      "description": "Which kind of debuginfo does the target use?\n\nUseful in determining whether a target supports Split DWARF (a target with\n`DebuginfoKind::Dwarf` and supporting `SplitDebuginfo::Unpacked` for example).",
+      "oneOf": [
+        {
+          "description": "DWARF debuginfo (such as that used on `x86_64_unknown_linux_gnu`).",
+          "type": "string",
+          "const": "dwarf"
+        },
+        {
+          "description": "DWARF debuginfo in dSYM files (such as on Apple platforms).",
+          "type": "string",
+          "const": "dwarf-dsym"
+        },
+        {
+          "description": "Program database files (such as on Windows).",
+          "type": "string",
+          "const": "pdb"
+        }
+      ]
+    },
+    "Endian": {
+      "type": "string",
+      "enum": [
+        "big",
+        "little"
+      ]
+    },
+    "Env": {
+      "type": "string"
+    },
+    "ExternAbi": {
+      "type": "string",
+      "enum": [
+        "C",
+        "C-unwind",
+        "Rust",
+        "aapcs",
+        "aapcs-unwind",
+        "avr-interrupt",
+        "avr-non-blocking-interrupt",
+        "cdecl",
+        "cdecl-unwind",
+        "cmse-nonsecure-call",
+        "cmse-nonsecure-entry",
+        "custom",
+        "efiapi",
+        "fastcall",
+        "fastcall-unwind",
+        "gpu-kernel",
+        "msp430-interrupt",
+        "ptx-kernel",
+        "riscv-interrupt-m",
+        "riscv-interrupt-s",
+        "rust-call",
+        "rust-cold",
+        "rust-invalid",
+        "rust-preserve-none",
+        "stdcall",
+        "stdcall-unwind",
+        "system",
+        "system-unwind",
+        "sysv64",
+        "sysv64-unwind",
+        "thiscall",
+        "thiscall-unwind",
+        "unadjusted",
+        "vectorcall",
+        "vectorcall-unwind",
+        "win64",
+        "win64-unwind",
+        "x86-interrupt"
+      ]
+    },
+    "FloatAbi": {
+      "description": "The float ABI setting to be configured in the LLVM target machine.",
+      "type": "string",
+      "enum": [
+        "soft",
+        "hard"
+      ]
+    },
+    "FramePointer": {
+      "oneOf": [
+        {
+          "description": "Forces the machine code generator to always preserve the frame pointers.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Forces the machine code generator to preserve the frame pointers except for the leaf\nfunctions (i.e. those that don't call other functions).",
+          "type": "string",
+          "const": "non-leaf"
+        },
+        {
+          "description": "Allows the machine code generator to omit the frame pointers.\n\nThis option does not guarantee that the frame pointers will be omitted.",
+          "type": "string",
+          "const": "may-omit"
+        }
+      ]
+    },
+    "LinkSelfContainedComponents": {
+      "type": "string",
+      "enum": [
+        "crto",
+        "libc",
+        "unwind",
+        "linker",
+        "sanitizers",
+        "mingw"
+      ]
+    },
+    "LinkSelfContainedComponentsWrapper": {
+      "type": "object",
+      "properties": {
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LinkSelfContainedComponents"
+          }
+        }
+      },
+      "required": [
+        "components"
+      ]
+    },
+    "LinkSelfContainedDefault": {
+      "type": "string",
+      "enum": [
+        "false",
+        "true",
+        "wasm",
+        "musl",
+        "mingw"
+      ]
+    },
+    "LinkerFlavor": {
+      "type": "string",
+      "enum": [
+        "gnu",
+        "gnu-lld",
+        "gnu-cc",
+        "gnu-lld-cc",
+        "darwin",
+        "darwin-lld",
+        "darwin-cc",
+        "darwin-lld-cc",
+        "wasm-lld",
+        "wasm-lld-cc",
+        "unix",
+        "unix-cc",
+        "msvc-lld",
+        "msvc",
+        "em-cc",
+        "bpf",
+        "llbc",
+        "ptx",
+        "gcc",
+        "ld",
+        "ld.lld",
+        "ld64.lld",
+        "lld-link",
+        "wasm-ld",
+        "em"
+      ]
+    },
+    "LldFlavor": {
+      "type": "string",
+      "enum": [
+        "wasm",
+        "darwin",
+        "gnu",
+        "link"
+      ]
+    },
+    "MergeFunctions": {
+      "type": "string",
+      "enum": [
+        "disabled",
+        "trampolines",
+        "aliases"
+      ]
+    },
+    "Os": {
+      "type": "string"
+    },
+    "PanicStrategy": {
+      "type": "string",
+      "enum": [
+        "unwind",
+        "abort",
+        "immediate-abort"
+      ]
+    },
+    "RelocModel": {
+      "type": "string",
+      "enum": [
+        "static",
+        "pic",
+        "pie",
+        "dynamic-no-pic",
+        "ropi",
+        "rwpi",
+        "ropi-rwpi"
+      ]
+    },
+    "RelroLevel": {
+      "type": "string",
+      "enum": [
+        "full",
+        "partial",
+        "off",
+        "none"
+      ]
+    },
+    "RustcAbi": {
+      "description": "The Rustc-specific variant of the ABI used for this target.",
+      "oneOf": [
+        {
+          "description": "On x86-32 only: make use of SSE and SSE2 for ABI purposes.",
+          "type": "string",
+          "const": "x86-sse2"
+        },
+        {
+          "description": "On x86-32/64 and S390x: do not use any FPU or SIMD registers for the ABI.",
+          "type": "string",
+          "const": "softfloat"
+        }
+      ]
+    },
+    "SanitizerSet": {
+      "type": "string",
+      "enum": [
+        "address",
+        "leak",
+        "memory",
+        "thread",
+        "hwaddress",
+        "cfi",
+        "memtag",
+        "shadow-call-stack",
+        "kcfi",
+        "kernel-address",
+        "safestack",
+        "dataflow",
+        "realtime"
+      ]
+    },
+    "SmallDataThresholdSupport": {
+      "type": "string",
+      "pattern": "^none|default-for-arch|llvm-module-flag=.+|llvm-arg=.+$"
+    },
+    "SplitDebuginfo": {
+      "oneOf": [
+        {
+          "description": "Split debug-information is disabled, meaning that on supported platforms\nyou can find all debug information in the executable itself. This is\nonly supported for ELF effectively.\n\n* Windows - not supported\n* macOS - don't run `dsymutil`\n* ELF - `.debug_*` sections",
+          "type": "string",
+          "const": "off"
+        },
+        {
+          "description": "Split debug-information can be found in a \"packed\" location separate\nfrom the final artifact. This is supported on all platforms.\n\n* Windows - `*.pdb`\n* macOS - `*.dSYM` (run `dsymutil`)\n* ELF - `*.dwp` (run `thorin`)",
+          "type": "string",
+          "const": "packed"
+        },
+        {
+          "description": "Split debug-information can be found in individual object files on the\nfilesystem. The main executable may point to the object files.\n\n* Windows - not supported\n* macOS - supported, scattered object files\n* ELF - supported, scattered `*.dwo` or `*.o` files (see `SplitDwarfKind`)",
+          "type": "string",
+          "const": "unpacked"
+        }
+      ]
+    },
+    "StackProbeType": {
+      "oneOf": [
+        {
+          "description": "Don't emit any stack probes.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "none"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "It is harmless to use this option even on targets that do not have backend support for\nstack probes as the failure mode is the same as if no stack-probe option was specified in\nthe first place.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "inline"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Call `__rust_probestack` whenever stack needs to be probed.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "call"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Use inline option for LLVM versions later than specified in `min_llvm_version_for_inline`\nand call `__rust_probestack` otherwise.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "inline-or-call"
+            },
+            "min-llvm-version-for-inline": {
+              "type": "array",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0
+                },
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0
+                },
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "min-llvm-version-for-inline"
+          ]
+        }
+      ]
+    },
+    "SymbolVisibility": {
+      "type": "string",
+      "enum": [
+        "hidden",
+        "protected",
+        "interposable"
+      ]
+    },
+    "TargetFamiliesJson": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "TargetSpecJsonMetadata": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "host_tools": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "std": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "tier": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "TlsModel": {
+      "type": "string",
+      "enum": [
+        "global-dynamic",
+        "local-dynamic",
+        "initial-exec",
+        "local-exec",
+        "emulated"
+      ]
+    }
+  }
+}
