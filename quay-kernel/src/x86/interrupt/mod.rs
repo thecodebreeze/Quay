@@ -1,6 +1,6 @@
 use crate::x86::gdt::DOUBLE_FAULT_IST_INDEX;
 use lazy_static::lazy_static;
-use log::{debug, error, info};
+use log::{debug, error};
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
 lazy_static! {
