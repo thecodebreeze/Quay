@@ -16,13 +16,14 @@ Quay is in early development. Currently, it boots using the **Limine** bootloade
   - **Global Descriptor Table (GDT)** and **Task State Segment (TSS)** with an Interrupt Stack Table (IST) for safe double fault handling.
   - **Interrupt Descriptor Table (IDT)** for handling hardware and software interrupts, including:
     - **CPU Exceptions**: Page Fault, Double Fault, General Protection Fault, Breakpoint, and Divide-by-Zero handling.
-    - **Hardware Interrupts**: Timer and Keyboard interrupts.
+    - **Hardware Interrupts**:
+      - **APIC Timer**: Calibrated against the **HPET** (High Precision Event Timer) for millisecond-precision timing.
+      - **PS/2 Keyboard**: Basic scancode reading from the PS/2 controller.
   - **Advanced Programmable Interrupt Controller (APIC)**: Initialization of both Local APIC and I/O APIC via ACPI for modern interrupt handling.
 - **Hardware Abstraction**:
-  - **ACPI Support**: Using the `acpi` crate to find and configure system devices.
+  - **ACPI Support**: Using the `acpi` crate to find and configure system devices (RSDP, MADT, HPET).
   - **Serial Logging**: Real-time logging over `COM1` serial port using `uart_16550`.
   - **UEFI Framebuffer**: Graphics support for basic visual output (clearing the screen).
-  - **Keyboard Support**: Basic scancode reading from the PS/2 controller.
 
 ## 🛠 Getting Started
 
@@ -57,8 +58,8 @@ This command will:
 - `quay-kernel/src/main.rs`: The kernel entry point and initialization sequence.
 - `quay-kernel/src/x86/`: x86_64 specific implementations:
   - `gdt/`: Global Descriptor Table and Task State Segment.
-  - `interrupt/`: IDT and APIC configuration.
-  - `acpi/`: ACPI table parsing and handling.
+  - `interrupt/`: IDT, APIC, and HPET-based timer configuration.
+  - `acpi/`: ACPI table parsing and MADT/HPET discovery.
 - `quay-kernel/src/memory/`: Memory management (physical, virtual, and heap).
 - `quay-kernel/src/serial.rs`: Serial logging implementation.
 - `quay-kernel/etc/limine/`: Limine bootloader configuration and binary files.
