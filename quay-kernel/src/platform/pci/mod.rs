@@ -5,10 +5,9 @@ pub use device::*;
 
 use crate::platform::pci::virtio::VIRTIO_VENDOR;
 use acpi::platform::PciConfigRegions;
-use alloc::vec;
 use alloc::vec::Vec;
 use core::ptr::read_volatile;
-use log::{info, trace};
+use log::trace;
 
 pub fn scan_pci_devices(pci_regions: &PciConfigRegions, hhdm_offset: u64) -> Vec<PciDevice> {
     let mut devices = Vec::new();
@@ -83,10 +82,10 @@ fn categorize_device(
 ) -> PciDeviceClass {
     if vendor_id == VIRTIO_VENDOR {
         match device_id {
-            0x1000 | 0x1041 => PciDeviceClass::VirtioNet,
-            0x1001 | 0x1042 => PciDeviceClass::VirtioBlock,
-            0x1002 | 0x1043 => PciDeviceClass::VirtioConsole,
-            0x1003 | 0x1044 => PciDeviceClass::VirtioRng,
+            0x1000 | 0x1040 => PciDeviceClass::VirtioNet,
+            0x1001 | 0x1041 => PciDeviceClass::VirtioBlock,
+            0x1003 | 0x1043 => PciDeviceClass::VirtioConsole,
+            0x1005 | 0x1045 => PciDeviceClass::VirtioRng,
             0x1050 => PciDeviceClass::VirtioGpu,
             0x1052 => PciDeviceClass::VirtioInput,
             0x1053 => PciDeviceClass::VirtioSocket,

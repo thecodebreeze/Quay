@@ -12,6 +12,7 @@ mod serial;
 
 use crate::graphics::DoubleBuffer;
 use crate::platform::acpi::QuayAcpiHandler;
+use acpi::platform::PciConfigRegions;
 use core::panic::PanicInfo;
 use embedded_graphics::Drawable;
 use embedded_graphics::mono_font::MonoTextStyle;
@@ -23,7 +24,7 @@ use limine::framebuffer::Framebuffer;
 use limine::request::{
     FramebufferRequest, HhdmRequest, MemoryMapRequest, RsdpRequest, StackSizeRequest,
 };
-use log::{error, info, trace};
+use log::{debug, error, info, trace};
 use x86_64::VirtAddr;
 
 /// Set the Limine base revision.
@@ -78,10 +79,10 @@ pub extern "C" fn _start() -> ! {
     let hpet_physical_address = platform::interrupt::timer::get_hpet_base_addr(&acpi_tables);
 
     // Map Local APIC
-    platform::interrupt::apic::map_mmio(hhdm_offset.as_u64(), apic_info.local_apic_address);
+    memory::vmm::map_mmio(hhdm_offset.as_u64(), apic_info.local_apic_address);
 
     // Map the HPET MMIO temporarily for calibration.
-    platform::interrupt::apic::map_mmio(hhdm_offset.as_u64(), hpet_physical_address as u64);
+    memory::vmm::map_mmio(hhdm_offset.as_u64(), hpet_physical_address as u64);
 
     // Calibration
     let hpet_virtual_address = (hpet_physical_address as u64 + hhdm_offset.as_u64()) as *mut u64;
@@ -97,11 +98,35 @@ pub extern "C" fn _start() -> ! {
     );
 
     // PCI Device enumeration via ACPI MCFG.
-    let pci_regions = acpi::platform::pci::PciConfigRegions::new(&acpi_tables)
-        .expect("MCFG to be present in the ACPI data");
+    let pci_regions =
+        PciConfigRegions::new(&acpi_tables).expect("MCFG to be present in the ACPI data");
 
-    // Segment 0, Bus 0 is the standard root PCIe bus in QEMU.
-    let mcfg_base_phys_address = pci_regions.physical_address(0, 0, 0, 0);
+    // Segment 0, Bus 0, Device 0, Function 0
+    let mcfg_base_phys_address = pci_regions
+        .physical_address(0, 0, 0, 0)
+        .expect("Failed to get MCFG base physical address");
+
+    // Map the entire 256MiB PCIe configuration space!
+    debug!("Mapping 256 MiB of PCIe ECAM MMIO space...");
+    memory::vmm::map_mmio_range(
+        mcfg_base_phys_address,
+        256 * 1024 * 1024,
+        hhdm_offset.as_u64(),
+    );
+
+    let pci_devices = platform::pci::scan_pci_devices(&pci_regions, hhdm_offset.as_u64());
+
+    let block_device = pci_devices
+        .iter()
+        .find(|device| device.class() == platform::pci::PciDeviceClass::VirtioBlock);
+
+    if let Some(block_device) = block_device {
+        trace!(
+            "Storage Subsystem initializing (Bus {:X}, Device {:X})...",
+            block_device.bus(),
+            block_device.device()
+        );
+    }
 
     // Capture the framebuffer.
     let framebuffer = get_framebuffer();
