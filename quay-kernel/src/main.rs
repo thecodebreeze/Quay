@@ -4,6 +4,7 @@
 
 extern crate alloc;
 
+mod drivers;
 mod graphics;
 mod memory;
 mod platform;
@@ -12,16 +13,16 @@ mod serial;
 use crate::graphics::DoubleBuffer;
 use crate::platform::acpi::QuayAcpiHandler;
 use core::panic::PanicInfo;
-use embedded_graphics::Drawable;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::{DrawTarget, Point};
 use embedded_graphics::text::Text;
-use limine::BaseRevision;
+use embedded_graphics::Drawable;
 use limine::framebuffer::Framebuffer;
 use limine::request::{
     FramebufferRequest, HhdmRequest, MemoryMapRequest, RsdpRequest, StackSizeRequest,
 };
+use limine::BaseRevision;
 use log::{error, info, trace};
 use x86_64::VirtAddr;
 
@@ -82,7 +83,7 @@ pub extern "C" fn _start() -> ! {
     // Map the HPET MMIO temporarily for calibration.
     platform::interrupt::apic::map_mmio(hhdm_offset.as_u64(), hpet_physical_address as u64);
 
-    // Calibration
+    // Timer Calibration
     let hpet_virtual_address = (hpet_physical_address as u64 + hhdm_offset.as_u64()) as *mut u64;
     let mut temp_lapic = platform::interrupt::apic::create_temp_lapic(
         apic_info.local_apic_address,
@@ -94,6 +95,13 @@ pub extern "C" fn _start() -> ! {
         "APIC timer calibrated. Ticks per millisecond: {}",
         ticks_per_ms
     );
+
+    // PCI Device enumeration via ACPI MCFG.
+    let pci_regions = acpi::platform::pci::PciConfigRegions::new(&acpi_tables)
+        .expect("MCFG to be present in the ACPI data");
+
+    // Segment 0, Bus 0 is the standard root PCIe bus in QEMU.
+    let mcfg_base_phys_address = pci_regions.physical_address(0, 0, 0, 0);
 
     // Capture the framebuffer.
     let framebuffer = get_framebuffer();
