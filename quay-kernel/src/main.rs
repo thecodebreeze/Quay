@@ -4,13 +4,21 @@
 
 extern crate alloc;
 
+pub mod graphics;
 mod memory;
 mod serial;
 mod x86;
 
+use crate::graphics::DoubleBuffer;
 use crate::x86::acpi::QuayAcpiHandler;
 use core::panic::PanicInfo;
+use embedded_graphics::Drawable;
+use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
+use embedded_graphics::pixelcolor::Rgb888;
+use embedded_graphics::prelude::{DrawTarget, Point};
+use embedded_graphics::text::Text;
 use limine::BaseRevision;
+use limine::framebuffer::Framebuffer;
 use limine::request::{
     FramebufferRequest, HhdmRequest, MemoryMapRequest, RsdpRequest, StackSizeRequest,
 };
@@ -85,9 +93,26 @@ pub extern "C" fn _start() -> ! {
         ticks_per_ms
     );
 
-    // Clear the screen.
-    clear_screen();
-    trace!("Screen cleared. Initializing hardware drivers...");
+    // Capture the framebuffer.
+    let framebuffer = get_framebuffer();
+    graphics::log_edid_info(&framebuffer);
+    let mut display = DoubleBuffer::new(&framebuffer);
+
+    // Set up a text style using the built-in 10x20 font.
+    let text_style = MonoTextStyle::new(
+        &embedded_graphics::mono_font::iso_8859_1::FONT_7X14,
+        Rgb888::new(198, 208, 245),
+    );
+    // Clear the display.
+    display.clear(Rgb888::new(48, 52, 70)).unwrap();
+    Text::new(
+        "Welcome to Quay v0.0.1!\nDeveloped by thecodebreeze (https://github.com/thecodebreeze)",
+        Point::new(0, 14),
+        text_style,
+    )
+    .draw(&mut display)
+    .unwrap();
+    display.flush();
 
     // Final hardware driver initialization.
     x86::interrupt::apic::init_apic(apic_info, hhdm_offset.as_u64(), ticks_per_ms);
@@ -120,7 +145,7 @@ fn discover_hardware(
     (acpi_tables, apic_info)
 }
 
-fn clear_screen() {
+fn get_framebuffer<'a>() -> Framebuffer<'a> {
     // Get the response from the framebuffer request.
     let Some(response) = FRAMEBUFFER_REQUEST.get_response() else {
         halt_and_catch_fire();
@@ -131,24 +156,7 @@ fn clear_screen() {
         halt_and_catch_fire();
     };
 
-    let framebuffer_ptr = framebuffer.addr();
-    let width = framebuffer.width() as usize;
-    let height = framebuffer.height() as usize;
-    let pitch = framebuffer.pitch() as usize;
-    let bpp = (framebuffer.bpp() / 8) as usize;
-
-    // Clear the framebuffer.
-    for y in 0..height {
-        for x in 0..width {
-            let pixel_offset = (y * pitch) + (x * bpp);
-            // The framebuffer uses BGR rather than RGB!
-            unsafe {
-                framebuffer_ptr.add(pixel_offset).write_volatile(46);
-                framebuffer_ptr.add(pixel_offset + 1).write_volatile(30);
-                framebuffer_ptr.add(pixel_offset + 2).write_volatile(30);
-            }
-        }
-    }
+    framebuffer
 }
 
 /// Custom panic handler. For now, just loops forever until we have proper handling.

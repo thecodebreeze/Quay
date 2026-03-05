@@ -47,7 +47,7 @@ qemu:
         -cpu host \
         -m 16G \
         -bios /usr/share/ovmf/OVMF.fd \
-        -display sdl,gl=on \
+        -display gtk,gl=on \
         -device virtio-vga-gl \
         -drive id=disk0,format=raw,file={{IMG}},if=none \
         -device virtio-blk-pci,drive=disk0 \

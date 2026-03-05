@@ -15,7 +15,6 @@ limine = { version = "0.5.0", features = ["uuid"] }
 # Platform
 x86_64 = { version = "0.15.4" }
 talc = { version = "4.4.3" }
-pic8259 = { version = "0.11.0" }
 pc-keyboard = { version = "0.8.0" }
 acpi = { version = "6.1.0" }
 x2apic = { version = "0.5.0" }
@@ -28,6 +27,10 @@ spin = { version = "0.10.0" }
 
 # Utilities
 lazy_static = { version = "1.5.0", features = ["spin_no_std"] }
+
+# Graphics and Rendering
+edid-rs = { version = "0.1.0", default-features = false, features = ["no_std"] }
+embedded-graphics = { version = "0.8.2" }
 
 # Error handling and Reporting
 log = { version = "0.4.29", default-features = false }

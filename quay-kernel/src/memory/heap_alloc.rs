@@ -30,7 +30,7 @@ impl OomHandler for DynamicHeap {
         // locking overhead for tiny allocations.
         //
         // If the requested layout is larger, we allocate enough to fit it.
-        let size = layout.size().max(64 * 1024);
+        let size = layout.size().saturating_add(4096).max(64 * 1024);
         let pages_needed = size.div_ceil(4096);
 
         // References to our PMM and VMM.
