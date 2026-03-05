@@ -10,7 +10,6 @@ mod x86;
 
 use crate::memory::frame_alloc::BootInfoFrameAllocator;
 use crate::x86::acpi::QuayAcpiHandler;
-use core::arch::asm;
 use core::panic::PanicInfo;
 use limine::BaseRevision;
 use limine::request::{

@@ -73,7 +73,7 @@ impl acpi::Handler for QuayAcpiHandler {
         }
     }
 
-    fn unmap_physical_region<T>(region: &PhysicalMapping<Self, T>) {
+    fn unmap_physical_region<T>(_region: &PhysicalMapping<Self, T>) {
         // HHDM mapping is permanent, so we should never unmap it.
     }
 
