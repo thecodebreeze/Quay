@@ -7,9 +7,7 @@ use spin::Mutex;
 use x2apic::ioapic::{IoApic, IrqFlags, IrqMode, RedirectionTableEntry};
 use x2apic::lapic::{LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
 use x86_64::structures::idt::InterruptStackFrame;
-use x86_64::structures::paging::{
-    FrameAllocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB, mapper,
-};
+use x86_64::structures::paging::{Mapper, Page, PageTableFlags, PhysFrame, Size4KiB, mapper};
 use x86_64::{PhysAddr, VirtAddr};
 
 /// We want to map our keyboard interrupt to this ID, because it matches the legacy PIC 32 + 1

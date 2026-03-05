@@ -1,57 +1,9 @@
-# Variables
 MODE := "debug"
 PROFILE := if MODE == "debug" { "dev" } else { "release" }
-KERNEL_BIN := "target/x86_64-quay-kernel/" + MODE + "/quay-kernel"
-BUILD_DIR := "build"
-ROOT_DIR := "build/root"
-IMG := "build/quay.img"
 
 # Default recipe
-run: build qemu
+run: build
 
-compile:
-    @echo "Compiling Kernel..."
-    cargo build --target x86_64-quay-kernel.json --profile {{PROFILE}}
-
-build: compile
-    @echo "Preparing staging area..."
-    rm -rf {{ROOT_DIR}}
-    mkdir -p {{ROOT_DIR}}/quay/v0.0.1
-    mkdir -p {{ROOT_DIR}}/EFI/BOOT
-
-    cp {{KERNEL_BIN}} {{ROOT_DIR}}/quay/v0.0.1/quay-kernel
-    cp etc/limine/limine.conf {{ROOT_DIR}}/EFI/BOOT/
-    cp etc/limine/BOOTX64.EFI {{ROOT_DIR}}/EFI/BOOT/
-
-    @echo "Calculating exact image size..."
-    SIZE_MB=$(du -sm {{ROOT_DIR}} | cut -f1); \
-    IMG_MB=$((SIZE_MB + 33)); \
-    echo "Creating $IMG_MB MB image..."; \
-    mkdir -p {{BUILD_DIR}}; \
-    dd if=/dev/zero of={{IMG}} bs=1M count=$IMG_MB status=none
-
-    @echo "Partitioning image (GPT)..."
-    parted -s {{IMG}} mklabel gpt
-    parted -s {{IMG}} mkpart ESP fat32 1MiB 100%
-    parted -s {{IMG}} set 1 esp on
-
-    @echo "Formatting and injecting files (mtools)..."
-    mformat -i {{IMG}}@@1048576 -F -v "QUAY" ::
-    mcopy -i {{IMG}}@@1048576 -s {{ROOT_DIR}}/* ::/
-
-qemu:
-    @echo "Launching QEMU with KVM and full VirtIO stack..."
-    qemu-system-x86_64 \
-        -M q35 \
-        -accel kvm \
-        -cpu host \
-        -m 16G \
-        -bios /usr/share/ovmf/OVMF.fd \
-        -display gtk,gl=on \
-        -device virtio-vga-gl \
-        -drive id=disk0,format=raw,file={{IMG}},if=none \
-        -device virtio-blk-pci,drive=disk0 \
-        -netdev user,id=net0 \
-        -device virtio-net-pci,netdev=net0 \
-        -device virtio-rng-pci \
-        -serial stdio
+# Just compile the kernel
+build:
+    cargo build --target ../.targets/x86_64-quay-kernel.json --profile {{PROFILE}}

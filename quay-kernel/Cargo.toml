@@ -18,6 +18,7 @@ talc = { version = "4.4.3" }
 pc-keyboard = { version = "0.8.0" }
 acpi = { version = "6.1.0" }
 x2apic = { version = "0.5.0" }
+virtio-drivers = { version = "0.13.0" }
 
 # Communications
 uart_16550 = { version = "0.4.0", features = ["nightly"] }

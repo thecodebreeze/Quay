@@ -4,16 +4,16 @@
 
 extern crate alloc;
 
-pub mod graphics;
+mod graphics;
 mod memory;
+mod platform;
 mod serial;
-mod x86;
 
 use crate::graphics::DoubleBuffer;
-use crate::x86::acpi::QuayAcpiHandler;
+use crate::platform::acpi::QuayAcpiHandler;
 use core::panic::PanicInfo;
 use embedded_graphics::Drawable;
-use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
+use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::{DrawTarget, Point};
 use embedded_graphics::text::Text;
@@ -61,8 +61,8 @@ static FRAMEBUFFER_REQUEST: FramebufferRequest = FramebufferRequest::with_revisi
 pub extern "C" fn _start() -> ! {
     // Initialization sequence start!
     serial::init_logger();
-    x86::gdt::init_gdt();
-    x86::interrupt::init_idt();
+    platform::gdt::init_gdt();
+    platform::interrupt::init_idt();
 
     // Memory System Initialization.
     lazy_static::initialize(&memory::vmm::VMM_MAPPER);
@@ -74,20 +74,22 @@ pub extern "C" fn _start() -> ! {
 
     // Hardware Discovery.
     let (acpi_tables, apic_info) = discover_hardware(hhdm_offset);
-    let hpet_physical_address = x86::interrupt::timer::get_hpet_base_addr(&acpi_tables);
+    let hpet_physical_address = platform::interrupt::timer::get_hpet_base_addr(&acpi_tables);
 
     // Map Local APIC
-    x86::interrupt::apic::map_mmio(hhdm_offset.as_u64(), apic_info.local_apic_address);
+    platform::interrupt::apic::map_mmio(hhdm_offset.as_u64(), apic_info.local_apic_address);
 
     // Map the HPET MMIO temporarily for calibration.
-    x86::interrupt::apic::map_mmio(hhdm_offset.as_u64(), hpet_physical_address as u64);
+    platform::interrupt::apic::map_mmio(hhdm_offset.as_u64(), hpet_physical_address as u64);
 
     // Calibration
     let hpet_virtual_address = (hpet_physical_address as u64 + hhdm_offset.as_u64()) as *mut u64;
-    let mut temp_lapic =
-        x86::interrupt::apic::create_temp_lapic(apic_info.local_apic_address, hhdm_offset.as_u64());
+    let mut temp_lapic = platform::interrupt::apic::create_temp_lapic(
+        apic_info.local_apic_address,
+        hhdm_offset.as_u64(),
+    );
     let ticks_per_ms =
-        x86::interrupt::timer::calibrate_apic_timer(&mut temp_lapic, hpet_virtual_address);
+        platform::interrupt::timer::calibrate_apic_timer(&mut temp_lapic, hpet_virtual_address);
     trace!(
         "APIC timer calibrated. Ticks per millisecond: {}",
         ticks_per_ms
@@ -115,7 +117,7 @@ pub extern "C" fn _start() -> ! {
     display.flush();
 
     // Final hardware driver initialization.
-    x86::interrupt::apic::init_apic(apic_info, hhdm_offset.as_u64(), ticks_per_ms);
+    platform::interrupt::apic::init_apic(apic_info, hhdm_offset.as_u64(), ticks_per_ms);
 
     info!("Initialization complete! Quay is up and running!");
     halt_and_catch_fire();
@@ -140,7 +142,7 @@ fn discover_hardware(
     };
 
     let apic_info =
-        x86::acpi::search_acpi_for_apic(handler, rsdp_phys as usize).expect("No APIC found!");
+        platform::acpi::search_acpi_for_apic(handler, rsdp_phys as usize).expect("No APIC found!");
 
     (acpi_tables, apic_info)
 }

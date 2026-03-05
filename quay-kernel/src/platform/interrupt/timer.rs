@@ -1,4 +1,4 @@
-use crate::x86::acpi::QuayAcpiHandler;
+use crate::platform::acpi::QuayAcpiHandler;
 use acpi::AcpiTables;
 use acpi::sdt::hpet::HpetTable;
 use core::ptr::{read_volatile, write_volatile};

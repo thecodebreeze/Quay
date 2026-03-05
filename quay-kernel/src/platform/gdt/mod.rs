@@ -23,7 +23,7 @@ lazy_static! {
             // We use mutable static to allocate this memory right inside the kernel binary.
             static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
 
-            // Calculate the top of the stack (since in x86 it grows downwards).
+            // Calculate the top of the stack (since in platform it grows downwards).
             #[allow(unused_unsafe)]
             let stack_ptr = unsafe { ptr::addr_of!(STACK) };
             let stack_start = VirtAddr::from_ptr(stack_ptr);

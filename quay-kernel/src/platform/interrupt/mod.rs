@@ -1,10 +1,15 @@
 pub mod apic;
 pub mod timer;
 
-use crate::x86::gdt::DOUBLE_FAULT_IST_INDEX;
+use crate::platform::gdt::DOUBLE_FAULT_IST_INDEX;
+use crate::platform::interrupt::apic::{
+    KEYBOARD_INTERRUPT_ID, TICKS, apic_error_interrupt_handler, apic_timer_interrupt_handler,
+    spurious_interrupt_handler,
+};
 use core::sync::atomic::Ordering;
 use lazy_static::lazy_static;
 use log::{debug, error};
+use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
 lazy_static! {
@@ -80,12 +85,6 @@ extern "x86-interrupt" fn general_protection_fault_handler(
         error_code, stack_frame
     );
 }
-
-use crate::x86::interrupt::apic::{
-    KEYBOARD_INTERRUPT_ID, TICKS, apic_error_interrupt_handler, apic_timer_interrupt_handler,
-    spurious_interrupt_handler,
-};
-use x86_64::structures::idt::PageFaultErrorCode;
 
 extern "x86-interrupt" fn page_fault_handler(
     stack_frame: InterruptStackFrame,
