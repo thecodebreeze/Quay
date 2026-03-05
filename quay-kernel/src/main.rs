@@ -13,16 +13,16 @@ mod serial;
 use crate::graphics::DoubleBuffer;
 use crate::platform::acpi::QuayAcpiHandler;
 use core::panic::PanicInfo;
+use embedded_graphics::Drawable;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::{DrawTarget, Point};
 use embedded_graphics::text::Text;
-use embedded_graphics::Drawable;
+use limine::BaseRevision;
 use limine::framebuffer::Framebuffer;
 use limine::request::{
     FramebufferRequest, HhdmRequest, MemoryMapRequest, RsdpRequest, StackSizeRequest,
 };
-use limine::BaseRevision;
 use log::{error, info, trace};
 use x86_64::VirtAddr;
 
@@ -83,7 +83,7 @@ pub extern "C" fn _start() -> ! {
     // Map the HPET MMIO temporarily for calibration.
     platform::interrupt::apic::map_mmio(hhdm_offset.as_u64(), hpet_physical_address as u64);
 
-    // Timer Calibration
+    // Calibration
     let hpet_virtual_address = (hpet_physical_address as u64 + hhdm_offset.as_u64()) as *mut u64;
     let mut temp_lapic = platform::interrupt::apic::create_temp_lapic(
         apic_info.local_apic_address,
