@@ -1,6 +1,8 @@
 pub mod apic;
+pub mod timer;
 
 use crate::x86::gdt::DOUBLE_FAULT_IST_INDEX;
+use core::sync::atomic::{AtomicUsize, Ordering};
 use lazy_static::lazy_static;
 use log::{debug, error};
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
@@ -30,6 +32,22 @@ lazy_static! {
 /// Loads the IDT into the CPU using the `LIDT` assembly instruction.
 pub fn init_idt() {
     IDT.load();
+}
+
+/// Returns the number of milliseconds since the kernel enabled interrupts.
+pub fn uptime_ms() -> usize {
+    TICKS.load(Ordering::Relaxed)
+}
+
+/// A blocking sleep function.
+/// Note: This busy-waits, which is fine for now, but in the future
+/// this will tell the scheduler to put the current thread to sleep.
+pub fn sleep_ms(ms: usize) {
+    let start_time = uptime_ms();
+    while uptime_ms() < start_time + ms {
+        // Optimization: Don't just spin, halt the CPU until the next tick!
+        x86_64::instructions::hlt();
+    }
 }
 
 /// Exception handler for breakpoints.
@@ -64,8 +82,8 @@ extern "x86-interrupt" fn general_protection_fault_handler(
 }
 
 use crate::x86::interrupt::apic::{
-    apic_error_interrupt_handler, apic_timer_interrupt_handler, spurious_interrupt_handler,
-    KEYBOARD_INTERRUPT_ID,
+    KEYBOARD_INTERRUPT_ID, TICKS, apic_error_interrupt_handler, apic_timer_interrupt_handler,
+    spurious_interrupt_handler,
 };
 use x86_64::structures::idt::PageFaultErrorCode;
 

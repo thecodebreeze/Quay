@@ -1,11 +1,12 @@
 use acpi::platform::interrupt::Apic;
+use core::sync::atomic::{AtomicUsize, Ordering};
 use log::{error, trace, warn};
 use spin::Mutex;
 use x2apic::ioapic::{IoApic, IrqFlags, IrqMode, RedirectionTableEntry};
-use x2apic::lapic::{LocalApic, LocalApicBuilder};
+use x2apic::lapic::{LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
 use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::paging::{
-    mapper, FrameAllocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB,
+    FrameAllocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB, mapper,
 };
 use x86_64::{PhysAddr, VirtAddr};
 
@@ -16,7 +17,7 @@ pub const KEYBOARD_INTERRUPT_ID: u8 = 33;
 /// Store the Local APIC globally so our interrupt handlers can send the EOI signals.
 pub static LAPIC: Mutex<Option<SafeLocalApic>> = Mutex::new(None);
 
-/// We implement Send and Sync manually. Since we have Mutex to guard the LocalApic there's no way
+/// We implement Send and Sync manually. Since we have Mutex to guard the [LocalApic] there's no way
 /// a data race is going to happen.
 ///
 /// Trust me bro.
@@ -24,9 +25,11 @@ pub struct SafeLocalApic(pub LocalApic);
 unsafe impl Send for SafeLocalApic {}
 unsafe impl Sync for SafeLocalApic {}
 
+/// Initializes the LAPIC device for the current CPU.
 pub fn init_apic(
     apic_info: Apic,
     hhdm_offset: u64,
+    ticks_per_ms: u32,
     mapper: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
 ) {
@@ -57,9 +60,21 @@ pub fn init_apic(
         .build()
         .expect("Failed to initialize Local APIC");
 
-    // Enable the Local APIC.
+    // Enable the Local APIC and configure the timer.
     let lapic_id = unsafe {
         lapic.enable();
+
+        // Divide the CPU's bus frequency by 16 for the timer.
+        lapic.set_timer_divide(TimerDivide::Div16);
+
+        // Set it to automatically restart when it hits 0.
+        lapic.set_timer_mode(TimerMode::Periodic);
+
+        // Give it a countdown value.
+        //
+        // This will need calibration against the RTC or PIT.
+        lapic.set_timer_initial(ticks_per_ms);
+
         lapic.id()
     };
 
@@ -79,7 +94,7 @@ pub fn init_apic(
         if int_override.isa_source == 1 {
             keyboard_gsi = int_override.global_system_interrupt as u8;
             warn!(
-                "Motherboard wiring quirk: Keyboard IRQ overriden to GSI {}",
+                "Motherboard wiring quirk: Keyboard IRQ overridden to GSI {}",
                 keyboard_gsi
             );
         }
@@ -106,6 +121,16 @@ pub fn init_apic(
     trace!("CPU interrupts enabled (APIC Mode)!");
 }
 
+pub fn create_temp_lapic(phys_addr: u64, hhdm_offset: u64) -> LocalApic {
+    LocalApicBuilder::new()
+        .timer_vector(32)
+        .error_vector(34)
+        .spurious_vector(255)
+        .set_xapic_base(phys_addr + hhdm_offset)
+        .build()
+        .expect("Failed to build temporary LAPIC for calibration")
+}
+
 pub(crate) extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
     use x86_64::instructions::port::Port;
 
@@ -123,9 +148,15 @@ pub(crate) extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: In
     }
 }
 
+/// A simple global counter for our timer ticks
+pub static TICKS: AtomicUsize = AtomicUsize::new(0);
+
 pub(crate) extern "x86-interrupt" fn apic_timer_interrupt_handler(
     _stack_frame: InterruptStackFrame,
 ) {
+    // Increment the tick counter safely.
+    TICKS.fetch_add(1, Ordering::Relaxed);
+
     // Acknowledge the interrupt
     if let Some(lapic_wrapper) = LAPIC.lock().as_mut() {
         unsafe {
@@ -146,10 +177,9 @@ pub(crate) extern "x86-interrupt" fn apic_error_interrupt_handler(
 }
 
 pub(crate) extern "x86-interrupt" fn spurious_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    warn!("Spurious APIC Interrupt received!");
 }
 
-fn map_mmio(
+pub(crate) fn map_mmio(
     hhdm_offset: u64,
     physical_address: u64,
     mapper: &mut impl Mapper<Size4KiB>,

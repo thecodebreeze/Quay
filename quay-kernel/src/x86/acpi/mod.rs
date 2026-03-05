@@ -1,7 +1,7 @@
 use acpi::aml::AmlError;
 use acpi::platform::interrupt::Apic;
 use acpi::{Handle, PciAddress, PhysicalMapping};
-use core::ptr::{read_volatile, write_volatile, NonNull};
+use core::ptr::{NonNull, read_volatile, write_volatile};
 use x86_64::instructions::port::Port;
 
 #[derive(Clone)]

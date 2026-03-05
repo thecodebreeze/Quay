@@ -12,10 +12,10 @@ use crate::memory::frame_alloc::BootInfoFrameAllocator;
 use crate::x86::acpi::QuayAcpiHandler;
 use core::arch::asm;
 use core::panic::PanicInfo;
+use limine::BaseRevision;
 use limine::request::{
     FramebufferRequest, HhdmRequest, MemoryMapRequest, RsdpRequest, StackSizeRequest,
 };
-use limine::BaseRevision;
 use log::{error, info, trace};
 use x86_64::VirtAddr;
 
@@ -55,70 +55,106 @@ static FRAMEBUFFER_REQUEST: FramebufferRequest = FramebufferRequest::with_revisi
 pub extern "C" fn _start() -> ! {
     // Initialization sequence start!
     serial::init_logger();
-    info!("Quay is booted up!");
-
     x86::gdt::init_gdt();
-    trace!("GDT and TSS loaded successfully!");
-
     x86::interrupt::init_idt();
-    trace!("IDT loaded successfully!");
+
+    // Memory System Initialization.
+    let hhdm_offset = get_hhdm_offset();
+    let mut mapper = memory::mapper::init_mapper(hhdm_offset);
+    let mut frame_allocator = init_pmm();
 
     // Get the HHDM offset from Limine.
     let hhdm_response = HHDM_REQUEST.get_response().expect("HHDM request failed!");
     let hhdm_offset = VirtAddr::new(hhdm_response.offset());
     trace!("HHDM offset: {:#X}", hhdm_offset);
 
-    // Initialize the Page Table Mapper.
-    let mut mapper = memory::mapper::init_mapper(hhdm_offset);
-    trace!("Page Table Mapper initialized successfully!");
-
-    // Fetch the memory map so we know how much RAM we actually have.
-    let memory_map_response = MEMORY_MAP_REQUEST
-        .get_response()
-        .expect("Memory Map request failed!");
-    trace!(
-        "Detected {} memory map entries.",
-        memory_map_response.entries().len()
-    );
-
-    // Create the Frame Allocator.
-    let mut frame_allocator = BootInfoFrameAllocator::init(memory_map_response.entries());
-    trace!("Physical Memory Manager (PMM) initialized successfully!");
-
-    // Initialize the kernel heap.
     memory::heap_alloc::init_heap_alloc(&mut mapper, &mut frame_allocator)
         .expect("Heap initialization failed!");
-    trace!("Kernel Heap initialized successfully!");
+    trace!("Kernel Heap and PMM initialized.");
 
-    // Load the ACPI Handler.
-    let Some(rsdp_response) = RSDP_REQUEST.get_response() else {
-        error!("No ACPI RSDP found! Cannot configure the APIC!");
-        halt_and_catch_fire();
-    };
+    // Hardware Discovery.
+    let (acpi_tables, apic_info) = discover_hardware(hhdm_offset);
+    let hpet_physical_address = x86::interrupt::timer::get_hpet_base_addr(&acpi_tables);
 
-    let rsdp_addr = rsdp_response.address();
-    trace!("ACPI RSDP address: {:#X}", rsdp_addr);
+    // Map Local APIC
+    x86::interrupt::apic::map_mmio(
+        hhdm_offset.as_u64(),
+        apic_info.local_apic_address,
+        &mut mapper,
+        &mut frame_allocator,
+    );
 
-    let rsdp_physical_address = rsdp_addr - hhdm_offset.as_u64() as usize;
-    let acpi_handler = QuayAcpiHandler::new(hhdm_offset.as_u64());
+    // Map the HPET MMIO temporarily for calibration.
+    x86::interrupt::apic::map_mmio(
+        hhdm_offset.as_u64(),
+        hpet_physical_address as u64,
+        &mut mapper,
+        &mut frame_allocator,
+    );
 
-    // Try to find a suitable IOAPIC device.
-    let Some(apic) = x86::acpi::search_acpi_for_apic(acpi_handler.clone(), rsdp_physical_address)
-    else {
-        error!("No APIC found! Cannot configure the APIC!");
-        halt_and_catch_fire();
-    };
-
-    // Initialize the device we found and enable interrupts.
-    x86::interrupt::apic::init_apic(apic, hhdm_offset.as_u64(), &mut mapper, &mut frame_allocator);
+    // Calibration
+    let hpet_virtual_address = (hpet_physical_address as u64 + hhdm_offset.as_u64()) as *mut u64;
+    let mut temp_lapic =
+        x86::interrupt::apic::create_temp_lapic(apic_info.local_apic_address, hhdm_offset.as_u64());
+    info!("Created temporary LAPIC for calibration.");
+    let ticks_per_ms =
+        x86::interrupt::timer::calibrate_apic_timer(&mut temp_lapic, hpet_virtual_address);
+    info!(
+        "APIC timer calibrated. Ticks per millisecond: {}",
+        ticks_per_ms
+    );
 
     // Clear the screen.
     clear_screen();
+    trace!("Screen cleared. Initializing hardware drivers...");
 
-    // The kernel must never return. If it does, the CPU will like to execute garbage memory and
-    // triple fault.
+    // Final hardware driver initialization.
+    x86::interrupt::apic::init_apic(
+        apic_info,
+        hhdm_offset.as_u64(),
+        ticks_per_ms,
+        &mut mapper,
+        &mut frame_allocator,
+    );
+
     info!("Initialization complete! Quay is up and running!");
     halt_and_catch_fire();
+}
+
+fn get_hhdm_offset() -> VirtAddr {
+    let hhdm_response = HHDM_REQUEST.get_response().expect("HHDM request failed!");
+    VirtAddr::new(hhdm_response.offset())
+}
+
+fn init_pmm<'a>() -> BootInfoFrameAllocator<'a> {
+    let memory_map_response = MEMORY_MAP_REQUEST
+        .get_response()
+        .expect("Memory Map failed!");
+    BootInfoFrameAllocator::init(memory_map_response.entries())
+}
+
+fn discover_hardware(
+    hhdm_offset: VirtAddr,
+) -> (
+    acpi::AcpiTables<QuayAcpiHandler>,
+    acpi::platform::interrupt::Apic,
+) {
+    let rsdp_response = RSDP_REQUEST.get_response().expect("No ACPI RSDP found!");
+    let rsdp_virt = rsdp_response.address() as u64;
+    let rsdp_phys = rsdp_virt - hhdm_offset.as_u64();
+
+    let handler = QuayAcpiHandler::new(hhdm_offset.as_u64());
+
+    let acpi_tables = unsafe {
+        // from_rsdp expects a physical address
+        acpi::AcpiTables::from_rsdp(handler.clone(), rsdp_phys as usize)
+            .expect("Failed to parse ACPI")
+    };
+
+    let apic_info =
+        x86::acpi::search_acpi_for_apic(handler, rsdp_phys as usize).expect("No APIC found!");
+
+    (acpi_tables, apic_info)
 }
 
 fn clear_screen() {
@@ -160,7 +196,9 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 fn halt_and_catch_fire() -> ! {
+    x86_64::instructions::interrupts::enable();
+
     loop {
-        unsafe { asm!("hlt") }
+        x86_64::instructions::hlt();
     }
 }

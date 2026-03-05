@@ -1,5 +1,6 @@
 # Variables
 MODE := "debug"
+PROFILE := if MODE == "debug" { "dev" } else { "release" }
 KERNEL_BIN := "target/x86_64-quay-kernel/" + MODE + "/quay-kernel"
 BUILD_DIR := "build"
 ROOT_DIR := "build/root"
@@ -10,7 +11,7 @@ run: build qemu
 
 compile:
     @echo "Compiling Kernel..."
-    cargo build --target x86_64-quay-kernel.json --{{MODE}}
+    cargo build --target x86_64-quay-kernel.json --profile {{PROFILE}}
 
 build: compile
     @echo "Preparing staging area..."
