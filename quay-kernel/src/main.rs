@@ -2,14 +2,22 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
+extern crate alloc;
+
+mod memory;
 mod serial;
 mod x86;
 
+use crate::memory::frame_alloc::BootInfoFrameAllocator;
+use crate::x86::acpi::QuayAcpiHandler;
 use core::arch::asm;
 use core::panic::PanicInfo;
+use limine::request::{
+    FramebufferRequest, HhdmRequest, MemoryMapRequest, RsdpRequest, StackSizeRequest,
+};
 use limine::BaseRevision;
-use limine::request::{FramebufferRequest, HhdmRequest, MemoryMapRequest, StackSizeRequest};
 use log::{error, info, trace};
+use x86_64::VirtAddr;
 
 /// Set the Limine base revision.
 /// Without this tag, the bootloader will assume revision 0, which we don't want.
@@ -33,6 +41,11 @@ static HHDM_REQUEST: HhdmRequest = HhdmRequest::with_revision(5);
 #[unsafe(link_section = ".requests")]
 static MEMORY_MAP_REQUEST: MemoryMapRequest = MemoryMapRequest::with_revision(5);
 
+/// Requests the Root System Descriptor Pointer (RSDP). We use it to find the ACPI table.
+#[used]
+#[unsafe(link_section = ".requests")]
+static RSDP_REQUEST: RsdpRequest = RsdpRequest::with_revision(5);
+
 /// Request a framebuffer for graphics output.
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -50,9 +63,65 @@ pub extern "C" fn _start() -> ! {
     x86::interrupt::init_idt();
     trace!("IDT loaded successfully!");
 
-    x86_64::instructions::interrupts::int3();
-    trace!("Interrupts checked! Working fine like wine.");
+    // Get the HHDM offset from Limine.
+    let hhdm_response = HHDM_REQUEST.get_response().expect("HHDM request failed!");
+    let hhdm_offset = VirtAddr::new(hhdm_response.offset());
+    trace!("HHDM offset: {:#X}", hhdm_offset);
 
+    // Initialize the Page Table Mapper.
+    let mut mapper = memory::mapper::init_mapper(hhdm_offset);
+    trace!("Page Table Mapper initialized successfully!");
+
+    // Fetch the memory map so we know how much RAM we actually have.
+    let memory_map_response = MEMORY_MAP_REQUEST
+        .get_response()
+        .expect("Memory Map request failed!");
+    trace!(
+        "Detected {} memory map entries.",
+        memory_map_response.entries().len()
+    );
+
+    // Create the Frame Allocator.
+    let mut frame_allocator = BootInfoFrameAllocator::init(memory_map_response.entries());
+    trace!("Physical Memory Manager (PMM) initialized successfully!");
+
+    // Initialize the kernel heap.
+    memory::heap_alloc::init_heap_alloc(&mut mapper, &mut frame_allocator)
+        .expect("Heap initialization failed!");
+    trace!("Kernel Heap initialized successfully!");
+
+    // Load the ACPI Handler.
+    let Some(rsdp_response) = RSDP_REQUEST.get_response() else {
+        error!("No ACPI RSDP found! Cannot configure the APIC!");
+        halt_and_catch_fire();
+    };
+
+    let rsdp_addr = rsdp_response.address();
+    trace!("ACPI RSDP address: {:#X}", rsdp_addr);
+
+    let rsdp_physical_address = rsdp_addr - hhdm_offset.as_u64() as usize;
+    let acpi_handler = QuayAcpiHandler::new(hhdm_offset.as_u64());
+
+    // Try to find a suitable IOAPIC device.
+    let Some(apic) = x86::acpi::search_acpi_for_apic(acpi_handler.clone(), rsdp_physical_address)
+    else {
+        error!("No APIC found! Cannot configure the APIC!");
+        halt_and_catch_fire();
+    };
+
+    // Initialize the device we found and enable interrupts.
+    x86::interrupt::apic::init_apic(apic, hhdm_offset.as_u64(), &mut mapper, &mut frame_allocator);
+
+    // Clear the screen.
+    clear_screen();
+
+    // The kernel must never return. If it does, the CPU will like to execute garbage memory and
+    // triple fault.
+    info!("Initialization complete! Quay is up and running!");
+    halt_and_catch_fire();
+}
+
+fn clear_screen() {
     // Get the response from the framebuffer request.
     let Some(response) = FRAMEBUFFER_REQUEST.get_response() else {
         halt_and_catch_fire();
@@ -81,11 +150,6 @@ pub extern "C" fn _start() -> ! {
             }
         }
     }
-
-    // The kernel must never return. If it does, the CPU will like to execute garbage memory and
-    // triple fault.
-    info!("Initialization complete! Quay is up and running!");
-    halt_and_catch_fire();
 }
 
 /// Custom panic handler. For now, just loops forever until we have proper handling.

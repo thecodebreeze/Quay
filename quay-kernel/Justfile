@@ -10,7 +10,7 @@ run: build qemu
 
 compile:
     @echo "Compiling Kernel..."
-    cargo build --target x86_64-quay-kernel.json
+    cargo build --target x86_64-quay-kernel.json --{{MODE}}
 
 build: compile
     @echo "Preparing staging area..."

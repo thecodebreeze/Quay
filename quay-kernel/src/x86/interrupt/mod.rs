@@ -1,3 +1,5 @@
+pub mod apic;
+
 use crate::x86::gdt::DOUBLE_FAULT_IST_INDEX;
 use lazy_static::lazy_static;
 use log::{debug, error};
@@ -11,6 +13,16 @@ lazy_static! {
             .set_handler_fn(double_fault_handler)
             .set_stack_index(DOUBLE_FAULT_IST_INDEX);
         idt.divide_error.set_handler_fn(divide_handler);
+        idt.general_protection_fault
+            .set_handler_fn(general_protection_fault_handler);
+        idt.page_fault.set_handler_fn(page_fault_handler);
+
+        idt[32].set_handler_fn(apic_timer_interrupt_handler);
+        idt[34].set_handler_fn(apic_error_interrupt_handler);
+        idt[255].set_handler_fn(spurious_interrupt_handler);
+
+        idt[KEYBOARD_INTERRUPT_ID].set_handler_fn(apic::keyboard_interrupt_handler);
+
         idt
     };
 }
@@ -39,4 +51,33 @@ extern "x86-interrupt" fn double_fault_handler(
 /// Handler for errors related to numerical divisions.
 extern "x86-interrupt" fn divide_handler(stack_frame: InterruptStackFrame) {
     error!("EXCEPTION: DIVIDE BY ZERO\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn general_protection_fault_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    panic!(
+        "EXCEPTION: GENERAL PROTECTION FAULT (Error Code: {})\n{:#?}",
+        error_code, stack_frame
+    );
+}
+
+use crate::x86::interrupt::apic::{
+    apic_error_interrupt_handler, apic_timer_interrupt_handler, spurious_interrupt_handler,
+    KEYBOARD_INTERRUPT_ID,
+};
+use x86_64::structures::idt::PageFaultErrorCode;
+
+extern "x86-interrupt" fn page_fault_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: PageFaultErrorCode,
+) {
+    use x86_64::registers::control::Cr2;
+    panic!(
+        "EXCEPTION: PAGE FAULT\nAccessed Address: {:?}\nError Code: {:?}\n{:#?}",
+        Cr2::read(),
+        error_code,
+        stack_frame
+    );
 }
