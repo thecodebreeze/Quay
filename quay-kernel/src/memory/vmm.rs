@@ -1,9 +1,22 @@
+use crate::HHDM_REQUEST;
+use lazy_static::lazy_static;
+use spin::Mutex;
 use x86_64::VirtAddr;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::{OffsetPageTable, PageTable};
 
+lazy_static! {
+    pub static ref VMM_MAPPER: Mutex<OffsetPageTable<'static>> = {
+        let hhdm_response = HHDM_REQUEST.get_response().expect("HHDM to be present");
+        let hhdm_offset_virtual_address = VirtAddr::new(hhdm_response.offset());
+
+        let mapper = init_mapper(hhdm_offset_virtual_address);
+        Mutex::new(mapper)
+    };
+}
+
 /// Initialize a new OffsetPageTable.
-pub fn init_mapper<'a>(hhdm_offset: VirtAddr) -> OffsetPageTable<'a> {
+fn init_mapper<'a>(hhdm_offset: VirtAddr) -> OffsetPageTable<'a> {
     // Read the active Level4 page table from the CR3 Register.
     let (level_4_table_frame, _) = Cr3::read();
 

@@ -1,3 +1,5 @@
+use crate::memory::pmm::GlobalBitmapPMM;
+use crate::memory::vmm::VMM_MAPPER;
 use acpi::platform::interrupt::Apic;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use log::{error, trace, warn};
@@ -26,29 +28,13 @@ unsafe impl Send for SafeLocalApic {}
 unsafe impl Sync for SafeLocalApic {}
 
 /// Initializes the LAPIC device for the current CPU.
-pub fn init_apic(
-    apic_info: Apic,
-    hhdm_offset: u64,
-    ticks_per_ms: u32,
-    mapper: &mut impl Mapper<Size4KiB>,
-    frame_allocator: &mut impl FrameAllocator<Size4KiB>,
-) {
+pub fn init_apic(apic_info: Apic, hhdm_offset: u64, ticks_per_ms: u32) {
     // Map the Local APIC.
-    map_mmio(
-        hhdm_offset,
-        apic_info.local_apic_address,
-        mapper,
-        frame_allocator,
-    );
+    map_mmio(hhdm_offset, apic_info.local_apic_address);
 
     // Map the IOAPIC.
     let io_apic_info = apic_info.io_apics.first().expect("No IOAPIC found!");
-    map_mmio(
-        hhdm_offset,
-        io_apic_info.address as u64,
-        mapper,
-        frame_allocator,
-    );
+    map_mmio(hhdm_offset, io_apic_info.address as u64);
 
     // Set up Local APIC (LAPIC) on the CPU Core.
     let lapic_virtual_address = apic_info.local_apic_address + hhdm_offset;
@@ -179,12 +165,10 @@ pub(crate) extern "x86-interrupt" fn apic_error_interrupt_handler(
 pub(crate) extern "x86-interrupt" fn spurious_interrupt_handler(_stack_frame: InterruptStackFrame) {
 }
 
-pub(crate) fn map_mmio(
-    hhdm_offset: u64,
-    physical_address: u64,
-    mapper: &mut impl Mapper<Size4KiB>,
-    frame_allocator: &mut impl FrameAllocator<Size4KiB>,
-) {
+pub(crate) fn map_mmio(hhdm_offset: u64, physical_address: u64) {
+    let mut frame_allocator = GlobalBitmapPMM;
+    let mut mapper = VMM_MAPPER.lock();
+
     let virtual_address = physical_address + hhdm_offset;
     let frame = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(physical_address));
     let page = Page::<Size4KiB>::containing_address(VirtAddr::new(virtual_address));
@@ -192,7 +176,7 @@ pub(crate) fn map_mmio(
     // MMIO must be explicitly marked as NO_CACHE so the CPU talks directly to the hardware.
     let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_CACHE;
     unsafe {
-        match mapper.map_to(page, frame, flags, frame_allocator) {
+        match mapper.map_to(page, frame, flags, &mut frame_allocator) {
             Ok(flusher) => flusher.flush(),
             Err(mapper::MapToError::PageAlreadyMapped(_)) => {
                 // If Limine mapped it as Read-Only, forcefully override the flags to Writable!

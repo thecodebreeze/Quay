@@ -8,7 +8,6 @@ mod memory;
 mod serial;
 mod x86;
 
-use crate::memory::frame_alloc::BootInfoFrameAllocator;
 use crate::x86::acpi::QuayAcpiHandler;
 use core::panic::PanicInfo;
 use limine::BaseRevision;
@@ -58,47 +57,30 @@ pub extern "C" fn _start() -> ! {
     x86::interrupt::init_idt();
 
     // Memory System Initialization.
-    let hhdm_offset = get_hhdm_offset();
-    let mut mapper = memory::mapper::init_mapper(hhdm_offset);
-    let mut frame_allocator = init_pmm();
+    lazy_static::initialize(&memory::vmm::VMM_MAPPER);
+    lazy_static::initialize(&memory::pmm::PMM);
 
     // Get the HHDM offset from Limine.
     let hhdm_response = HHDM_REQUEST.get_response().expect("HHDM request failed!");
     let hhdm_offset = VirtAddr::new(hhdm_response.offset());
-    trace!("HHDM offset: {:#X}", hhdm_offset);
-
-    memory::heap_alloc::init_heap_alloc(&mut mapper, &mut frame_allocator)
-        .expect("Heap initialization failed!");
-    trace!("Kernel Heap and PMM initialized.");
 
     // Hardware Discovery.
     let (acpi_tables, apic_info) = discover_hardware(hhdm_offset);
     let hpet_physical_address = x86::interrupt::timer::get_hpet_base_addr(&acpi_tables);
 
     // Map Local APIC
-    x86::interrupt::apic::map_mmio(
-        hhdm_offset.as_u64(),
-        apic_info.local_apic_address,
-        &mut mapper,
-        &mut frame_allocator,
-    );
+    x86::interrupt::apic::map_mmio(hhdm_offset.as_u64(), apic_info.local_apic_address);
 
     // Map the HPET MMIO temporarily for calibration.
-    x86::interrupt::apic::map_mmio(
-        hhdm_offset.as_u64(),
-        hpet_physical_address as u64,
-        &mut mapper,
-        &mut frame_allocator,
-    );
+    x86::interrupt::apic::map_mmio(hhdm_offset.as_u64(), hpet_physical_address as u64);
 
     // Calibration
     let hpet_virtual_address = (hpet_physical_address as u64 + hhdm_offset.as_u64()) as *mut u64;
     let mut temp_lapic =
         x86::interrupt::apic::create_temp_lapic(apic_info.local_apic_address, hhdm_offset.as_u64());
-    info!("Created temporary LAPIC for calibration.");
     let ticks_per_ms =
         x86::interrupt::timer::calibrate_apic_timer(&mut temp_lapic, hpet_virtual_address);
-    info!(
+    trace!(
         "APIC timer calibrated. Ticks per millisecond: {}",
         ticks_per_ms
     );
@@ -108,28 +90,10 @@ pub extern "C" fn _start() -> ! {
     trace!("Screen cleared. Initializing hardware drivers...");
 
     // Final hardware driver initialization.
-    x86::interrupt::apic::init_apic(
-        apic_info,
-        hhdm_offset.as_u64(),
-        ticks_per_ms,
-        &mut mapper,
-        &mut frame_allocator,
-    );
+    x86::interrupt::apic::init_apic(apic_info, hhdm_offset.as_u64(), ticks_per_ms);
 
     info!("Initialization complete! Quay is up and running!");
     halt_and_catch_fire();
-}
-
-fn get_hhdm_offset() -> VirtAddr {
-    let hhdm_response = HHDM_REQUEST.get_response().expect("HHDM request failed!");
-    VirtAddr::new(hhdm_response.offset())
-}
-
-fn init_pmm<'a>() -> BootInfoFrameAllocator<'a> {
-    let memory_map_response = MEMORY_MAP_REQUEST
-        .get_response()
-        .expect("Memory Map failed!");
-    BootInfoFrameAllocator::init(memory_map_response.entries())
 }
 
 fn discover_hardware(
