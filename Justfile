@@ -5,6 +5,7 @@ KERNEL_BIN := "quay-kernel/target/x86_64-quay-kernel/" + MODE + "/quay-kernel"
 BUILD_DIR := "build"
 SYSROOT := "build/sysroot"
 QUAY_IMG := "build/quay.img"
+QUAY_CONFIG := "quay-kernel/etc/quay/quay.ron"
 ROOTFS_IMG := "build/rootfs.btrfs"
 
 # Default recipe
@@ -23,6 +24,7 @@ build-all: compile
     mkdir -p {{SYSROOT}}/efi/EFI/BOOT
     mkdir -p {{SYSROOT}}/efi/quay/v0.0.1
     cp {{KERNEL_BIN}} {{SYSROOT}}/efi/quay/v0.0.1/quay-kernel
+    cp {{QUAY_CONFIG}} {{SYSROOT}}/efi/quay/v0.0.1/quay.ron
     cp quay-kernel/etc/limine/limine.conf {{SYSROOT}}/efi/EFI/BOOT/
     cp quay-kernel/etc/limine/BOOTX64.EFI {{SYSROOT}}/efi/EFI/BOOT/
 
@@ -46,6 +48,10 @@ image: build-all
     parted -s {{QUAY_IMG}} mkpart ESP fat32 1MiB 33MiB
     parted -s {{QUAY_IMG}} set 1 esp on
     parted -s {{QUAY_IMG}} mkpart ROOT btrfs 33MiB 97MiB
+
+    @echo "==> Setting deterministic PARTUUID for ROOT partition..."
+    sgdisk --partition-guid=1:dad4987f-f229-4c53-ae9d-7530f52d7597 {{QUAY_IMG}}
+    sgdisk --partition-guid=2:a7093d6a-8eac-42ba-9dd8-1fbaf458187f {{QUAY_IMG}}
 
     @echo "==> Injecting EFI Partition (mtools)..."
     mformat -i {{QUAY_IMG}}@@1048576 -F -v "QUAY_EFI" ::

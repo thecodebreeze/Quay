@@ -32,6 +32,10 @@ uguid = { version = "2.2.1" }
 gpt_disk_io = { version = "0.16.2", features = ["alloc"] }
 btrfs-no-std = { version = "0.2.1" }
 
+# Serialization
+serde = { version = "1.0.228", default-features = false, features = ["alloc", "derive"] }
+ron = { version = "0.12.0", default-features = false }
+
 # Graphics and Rendering
 edid-rs = { version = "0.1.0", default-features = false, features = ["no_std"] }
 embedded-graphics = { version = "0.8.2" }

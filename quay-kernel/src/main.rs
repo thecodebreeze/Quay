@@ -6,6 +6,7 @@ extern crate alloc;
 
 mod drivers;
 mod graphics;
+mod io;
 mod memory;
 mod platform;
 mod serial;
@@ -13,17 +14,18 @@ mod serial;
 use crate::graphics::DoubleBuffer;
 use crate::platform::acpi::QuayAcpiHandler;
 use acpi::platform::PciConfigRegions;
+use alloc::string::{String, ToString};
 use core::panic::PanicInfo;
-use embedded_graphics::Drawable;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::{DrawTarget, Point};
 use embedded_graphics::text::Text;
-use limine::BaseRevision;
+use embedded_graphics::Drawable;
 use limine::framebuffer::Framebuffer;
 use limine::request::{
-    FramebufferRequest, HhdmRequest, MemoryMapRequest, RsdpRequest, StackSizeRequest,
+    FramebufferRequest, HhdmRequest, MemoryMapRequest, ModuleRequest, RsdpRequest, StackSizeRequest,
 };
+use limine::BaseRevision;
 use log::{debug, error, info, trace};
 use x86_64::VirtAddr;
 
@@ -59,6 +61,17 @@ static RSDP_REQUEST: RsdpRequest = RsdpRequest::with_revision(5);
 #[unsafe(link_section = ".requests")]
 static FRAMEBUFFER_REQUEST: FramebufferRequest = FramebufferRequest::with_revision(5);
 
+/// Request the Quay kernel modules.
+#[used]
+#[unsafe(link_section = ".requests")]
+static MODULE_REQUEST: ModuleRequest = ModuleRequest::with_revision(5);
+
+#[derive(Debug, serde::Deserialize)]
+pub struct QuayConfig {
+    /// GUID of the partition that contains the Quay root file system.
+    pub root_partition: String,
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
     // Initialization sequence start!
@@ -69,6 +82,10 @@ pub extern "C" fn _start() -> ! {
     // Memory System Initialization.
     lazy_static::initialize(&memory::vmm::VMM_MAPPER);
     lazy_static::initialize(&memory::pmm::PMM);
+
+    // Get the configuration for Quay.
+    let quay_config = load_boot_config().expect("Quay configuration to be loaded.");
+    trace!("Quay configuration: {:?}", quay_config);
 
     // Get the HHDM offset from Limine.
     let hhdm_response = HHDM_REQUEST.get_response().expect("HHDM request failed!");
@@ -116,27 +133,26 @@ pub extern "C" fn _start() -> ! {
 
     let pci_devices = platform::pci::scan_pci_devices(&pci_regions, hhdm_offset.as_u64());
 
-    let block_device = pci_devices
+    pci_devices
         .iter()
-        .find(|device| device.class() == platform::pci::PciDeviceClass::VirtioBlock);
+        .filter(|device| device.class() == platform::pci::PciDeviceClass::VirtioBlock)
+        .for_each(|&device| {
+            trace!(
+                "Storage Subsystem initializing (Bus {:X}, Device {:X})...",
+                device.bus(),
+                device.device()
+            );
 
-    if let Some(block_device) = block_device {
-        trace!(
-            "Storage Subsystem initializing (Bus {:X}, Device {:X})...",
-            block_device.bus(),
-            block_device.device()
-        );
-
-        let mcfg_base_virt_address = mcfg_base_phys_address + hhdm_offset.as_u64();
-        if let Some(transport) = platform::pci::virtio::create_pci_transport(
-            mcfg_base_virt_address,
-            block_device.bus(),
-            block_device.device(),
-            block_device.function(),
-        ) {
-            drivers::virtio::block::init_block_device(transport);
-        }
-    }
+            let mcfg_base_virt_address = mcfg_base_phys_address + hhdm_offset.as_u64();
+            if let Some(transport) = platform::pci::virtio::create_pci_transport(
+                mcfg_base_virt_address,
+                device.bus(),
+                device.device(),
+                device.function(),
+            ) {
+                drivers::virtio::block::init_block_device(transport);
+            }
+        });
 
     // Capture the framebuffer.
     let framebuffer = get_framebuffer();
@@ -216,5 +232,25 @@ fn halt_and_catch_fire() -> ! {
 
     loop {
         x86_64::instructions::hlt();
+    }
+}
+
+fn load_boot_config() -> Option<QuayConfig> {
+    let response = MODULE_REQUEST.get_response()?;
+    let module = response
+        .modules()
+        .iter()
+        .find(|m| m.path().to_string_lossy().to_string().ends_with("quay.ron"))?;
+
+    let data =
+        unsafe { core::slice::from_raw_parts(module.addr() as *const u8, module.size() as usize) };
+
+    // Parse it directly using RON
+    match ron::de::from_bytes::<QuayConfig>(data) {
+        Ok(config) => Some(config),
+        Err(e) => {
+            log::error!("Failed to parse quay.ron: {:?}", e);
+            None
+        }
     }
 }

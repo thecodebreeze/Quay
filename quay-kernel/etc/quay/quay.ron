@@ -1,0 +1,4 @@
+// WARNING! Modifying this file may turn your system unbootable!
+QuayConfig(
+    root_partition: "a7093d6a-8eac-42ba-9dd8-1fbaf458187f",
+)
