@@ -28,6 +28,7 @@ spin = { version = "0.10.0" }
 
 # Utilities
 lazy_static = { version = "1.5.0", features = ["spin_no_std"] }
+bitflags = { version = "2.11.0", default-features = false }
 uguid = { version = "2.2.1" }
 gpt_disk_io = { version = "0.16.2", features = ["alloc"] }
 btrfs-no-std = { version = "0.2.1" }

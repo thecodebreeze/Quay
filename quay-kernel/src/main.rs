@@ -10,6 +10,8 @@ mod io;
 mod memory;
 mod platform;
 mod serial;
+mod arch;
+mod hal;
 
 use crate::graphics::DoubleBuffer;
 use crate::platform::acpi::QuayAcpiHandler;
@@ -76,7 +78,7 @@ pub struct QuayConfig {
 pub extern "C" fn _start() -> ! {
     // Initialization sequence start!
     serial::init_logger();
-    platform::gdt::init_gdt();
+    arch::x86_64::gdt::load_global_descriptor_table();
     platform::interrupt::init_idt();
 
     // Memory System Initialization.

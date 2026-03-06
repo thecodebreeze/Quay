@@ -313,6 +313,7 @@ name = "quay-kernel"
 version = "0.1.0"
 dependencies = [
  "acpi",
+ "bitflags 2.11.0",
  "btrfs-no-std",
  "edid-rs",
  "embedded-graphics",
