@@ -1,5 +1,5 @@
 use crate::io::block::partition::Partition;
-use crate::io::block::{add_partition, read_block, write_block, BLOCK_DEVICES};
+use crate::io::block::{BLOCK_DEVICES, add_partition, read_block, write_block};
 use alloc::format;
 use gpt_disk_io::gpt_disk_types::{BlockSize, Lba};
 use gpt_disk_io::{BlockIo, Disk};

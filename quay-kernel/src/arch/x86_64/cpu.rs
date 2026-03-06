@@ -2,8 +2,8 @@ use crate::arch::x86_64::apic::get_local_apic;
 use alloc::boxed::Box;
 use spin::{Mutex, MutexGuard};
 use x2apic::lapic::LocalApic;
-use x86_64::registers::model_specific::GsBase;
 use x86_64::VirtAddr;
+use x86_64::registers::model_specific::GsBase;
 
 /// CPU data used internally for diverse operations.
 #[repr(C)]

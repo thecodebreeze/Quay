@@ -3,10 +3,10 @@
 //! This module defines key, core functionality for working with x86_64 such as the GDT, IDT,
 //! APIC, Timers, and safe wrappers around x86_64 specific assembly instructions.
 
+pub mod apic;
+pub mod cpu;
 pub mod gdt;
 pub mod idt;
-pub mod pic;
 mod isr;
-pub mod apic;
+pub mod pic;
 pub mod timer;
-pub mod cpu;

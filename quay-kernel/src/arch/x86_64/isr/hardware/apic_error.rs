@@ -1,4 +1,4 @@
-use crate::arch::x86_64::apic::{get_lapic_address, LAPIC_ESR_REGISTER};
+use crate::arch::x86_64::apic::{LAPIC_ESR_REGISTER, get_lapic_address};
 use crate::arch::x86_64::cpu::CpuLocalData;
 use bitflags::bitflags;
 use core::ops::Add;

@@ -1,15 +1,15 @@
 //! This module implements APIC related utilities.
+use crate::HHDM_REQUEST;
 use crate::arch::x86_64::cpu::CpuLocalData;
 use crate::arch::x86_64::idt::{
     APIC_ERROR_VECTOR_INDEX, APIC_SPURIOUS_VECTOR_INDEX, APIC_TIMER_VECTOR_INDEX,
 };
-use crate::HHDM_REQUEST;
 use core::sync::atomic;
 use core::sync::atomic::AtomicU64;
 use x2apic::lapic::{LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
+use x86_64::VirtAddr;
 use x86_64::instructions::interrupts::without_interrupts;
 use x86_64::registers::model_specific::Msr;
-use x86_64::VirtAddr;
 
 /// Atomic variable to store the virtual address of the LAPIC.
 static LAPIC_VADDR: AtomicU64 = AtomicU64::new(0);

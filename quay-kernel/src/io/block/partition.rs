@@ -1,4 +1,4 @@
-use crate::io::block::{read_block, write_block, BLOCK_DEVICES};
+use crate::io::block::{BLOCK_DEVICES, read_block, write_block};
 use alloc::string::String;
 use gpt_disk_io::gpt_disk_types::GptPartitionType;
 use uguid::Guid;

@@ -4,30 +4,30 @@
 
 extern crate alloc;
 
+mod arch;
 mod drivers;
 mod graphics;
+mod hal;
 mod io;
 mod memory;
 mod platform;
 mod serial;
-mod arch;
-mod hal;
 
 use crate::graphics::DoubleBuffer;
 use crate::platform::acpi::QuayAcpiHandler;
 use acpi::platform::PciConfigRegions;
 use alloc::string::{String, ToString};
 use core::panic::PanicInfo;
+use embedded_graphics::Drawable;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::{DrawTarget, Point};
 use embedded_graphics::text::Text;
-use embedded_graphics::Drawable;
+use limine::BaseRevision;
 use limine::framebuffer::Framebuffer;
 use limine::request::{
     FramebufferRequest, HhdmRequest, MemoryMapRequest, ModuleRequest, RsdpRequest, StackSizeRequest,
 };
-use limine::BaseRevision;
 use log::{debug, error, info, trace};
 use x86_64::VirtAddr;
 

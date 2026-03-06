@@ -1,6 +1,6 @@
 use log::debug;
-use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::PrivilegeLevel;
+use x86_64::structures::idt::InterruptStackFrame;
 
 /// Handles the divide error interrupt event.
 pub extern "x86-interrupt" fn handler(stack_frame: InterruptStackFrame) {
