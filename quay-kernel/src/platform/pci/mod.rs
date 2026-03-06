@@ -1,5 +1,5 @@
 mod device;
-mod virtio;
+pub mod virtio;
 
 pub use device::*;
 

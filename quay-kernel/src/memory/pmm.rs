@@ -139,6 +139,61 @@ impl<'a> BitmapPMM<'a> {
         None
     }
 
+    /// Allocates a series of frames that are contiguous (no holes).
+    ///
+    /// Returns a [Option::None] if there's no memory left to be allocated.
+    pub fn allocate_contiguous_frames(&mut self, count: usize) -> Option<PhysAddr> {
+        if count == 0 {
+            return None;
+        }
+
+        let mut consecutive = 0;
+        let mut start_index = 0;
+        let mut start_bit = 0;
+
+        for i in 0..self.bitmap.len() {
+            // Fast-path: skip fully used u64 blocks
+            if self.bitmap[i] == u64::MAX {
+                consecutive = 0;
+                continue;
+            }
+
+            for bit in 0..64 {
+                // EXPLICIT 1u64 here prevents 32-bit shift overflows
+                if (self.bitmap[i] & (1u64 << bit)) == 0 {
+                    if consecutive == 0 {
+                        start_index = i;
+                        start_bit = bit;
+                    }
+                    consecutive += 1;
+
+                    if consecutive == count {
+                        // We found enough contiguous frames; mark them as used
+                        let mut curr_idx = start_index;
+                        let mut curr_bit = start_bit;
+                        for _ in 0..count {
+                            self.bitmap[curr_idx] |= 1u64 << curr_bit;
+                            curr_bit += 1;
+                            if curr_bit == 64 {
+                                curr_idx += 1;
+                                curr_bit = 0;
+                            }
+                        }
+                        self.free_frames -= count;
+
+                        let frame_number = (start_index * 64) + start_bit;
+                        return Some(PhysAddr::new((frame_number * 4096) as u64));
+                    }
+                } else {
+                    consecutive = 0;
+                }
+            }
+        }
+
+        // Out of Memory or heavily fragmented
+        None
+    }
+
     /// Deallocates a frame marking it free for use.
     ///
     /// We do a preemptive optimization by setting the next_free pointer to the page we just freed
@@ -176,6 +231,10 @@ impl<'a> BitmapPMM<'a> {
         }
 
         None
+    }
+
+    pub fn free_frames(&self) -> usize {
+        self.free_frames
     }
 }
 

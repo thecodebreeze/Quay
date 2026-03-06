@@ -13,7 +13,7 @@ run: build-all image qemu
 # Compile all sub-projects.
 compile:
     @echo "==> Compiling Kernel..."
-    cd quay-kernel && just
+    cd quay-kernel && just MODE={{MODE}}
 
 # Gather everything into a dynamic sysroot.
 build-all: compile
@@ -71,4 +71,6 @@ qemu:
         -netdev user,id=net0 \
         -device virtio-net-pci,netdev=net0 \
         -device virtio-rng-pci \
+        -device virtio-keyboard-pci \
+        -device virtio-mouse-pci \
         -serial stdio

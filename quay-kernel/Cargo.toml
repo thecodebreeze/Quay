@@ -28,6 +28,9 @@ spin = { version = "0.10.0" }
 
 # Utilities
 lazy_static = { version = "1.5.0", features = ["spin_no_std"] }
+uguid = { version = "2.2.1" }
+gpt_disk_io = { version = "0.16.2", features = ["alloc"] }
+btrfs-no-std = { version = "0.2.1" }
 
 # Graphics and Rendering
 edid-rs = { version = "0.1.0", default-features = false, features = ["no_std"] }

@@ -3,7 +3,7 @@ build-std-features = ["compiler-builtins-mem"]
 build-std = ["core", "compiler_builtins", "alloc"]
 
 [build]
-target = "x86_64-quay-kernel.json"
+target = "../.targets/x86_64-quay-kernel.json"
 
 [target.x86_64-quay-kernel]
 rustflags = [

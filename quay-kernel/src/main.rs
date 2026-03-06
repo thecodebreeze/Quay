@@ -126,6 +126,16 @@ pub extern "C" fn _start() -> ! {
             block_device.bus(),
             block_device.device()
         );
+
+        let mcfg_base_virt_address = mcfg_base_phys_address + hhdm_offset.as_u64();
+        if let Some(transport) = platform::pci::virtio::create_pci_transport(
+            mcfg_base_virt_address,
+            block_device.bus(),
+            block_device.device(),
+            block_device.function(),
+        ) {
+            drivers::virtio::block::init_block_device(transport);
+        }
     }
 
     // Capture the framebuffer.
