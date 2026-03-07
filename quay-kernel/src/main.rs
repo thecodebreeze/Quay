@@ -12,6 +12,7 @@ mod io;
 mod memory;
 mod platform;
 mod serial;
+mod sys;
 
 use crate::graphics::DoubleBuffer;
 use crate::platform::acpi::QuayAcpiHandler;

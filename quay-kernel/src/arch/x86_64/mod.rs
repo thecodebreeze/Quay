@@ -10,3 +10,4 @@ pub mod idt;
 mod isr;
 pub mod pic;
 pub mod timer;
+pub mod vmm;
