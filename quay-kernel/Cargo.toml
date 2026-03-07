@@ -43,3 +43,4 @@ embedded-graphics = { version = "0.8.2" }
 
 # Error handling and Reporting
 log = { version = "0.4.29", default-features = false }
+thiserror-no-std = { version = "2.0.2" }

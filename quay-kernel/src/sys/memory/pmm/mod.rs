@@ -1,6 +1,11 @@
 //! Buddy Allocator implementation for allocating physical pages of memory.
 //!
 //! This implementation allows for `Huge Pages` up to `1GiB`.
+pub mod error;
+pub mod order;
+
+pub use error::PmmError;
+pub use order::Order;
 
 use crate::HHDM_REQUEST;
 use core::ops::{BitAnd, BitXor, Shl};
@@ -23,33 +28,11 @@ lazy_static! {
 /// The PMM supports every power of 2 page size between 0 (4KiB) and 18 (1GiB).
 pub const MAX_ORDER: usize = 19;
 
-/// The default page size for the PMM.
-pub const DEFAULT_PAGE_SIZE: usize = 4096;
+/// The default page size for the PMM (4KiB).
+pub const DEFAULT_PAGE_SIZE: usize = 0x1000;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(usize)]
-#[allow(clippy::enum_variant_names)]
-pub enum Order {
-    Order4KiB = 0,
-    Order8KiB = 1,
-    Order16KiB = 2,
-    Order32KiB = 3,
-    Order64KiB = 4,
-    Order128KiB = 5,
-    Order256KiB = 6,
-    Order512KiB = 7,
-    Order1MiB = 8,
-    Order2MiB = 9,
-    Order4MiB = 10,
-    Order8MiB = 11,
-    Order16MiB = 12,
-    Order32MiB = 13,
-    Order64MiB = 14,
-    Order128MiB = 15,
-    Order256MiB = 16,
-    Order512MiB = 17,
-    Order1GiB = 18,
-}
+// Standard Big Page (2MiB).
+pub const DEFAULT_BIG_PAGE_SIZE: usize = 0x200000;
 
 /// The Physical Memory Manager that implements a Buddy Allocator.
 ///
@@ -140,11 +123,11 @@ impl PhysMemoryManager {
     /// Allocates a contiguous block of memory of the specified `order`.
     ///
     /// Returns the physical address of the block we found as a `u64`.
-    pub fn allocate(&mut self, order: Order) -> Option<u64> {
+    pub fn allocate(&mut self, order: Order) -> Result<u64, PmmError> {
         // If the order is not supported, return None.
         let order = order as usize;
         if order >= MAX_ORDER {
-            return None;
+            return Err(PmmError::OrderTooLarge(order, MAX_ORDER));
         }
 
         // Find the smallest available order that is >= the requested order.
@@ -163,19 +146,20 @@ impl PhysMemoryManager {
                 let allocated_memory = DEFAULT_PAGE_SIZE.shl(order) as u64;
                 self.free_memory_bytes = self.free_memory_bytes.saturating_sub(allocated_memory);
 
-                return Some(phys_addr);
+                return Ok(phys_addr);
             }
         }
 
         // No blocks were found. The system is out of memory.
-        None
+        Err(PmmError::OutOfMemory(order))
     }
 
-    pub fn deallocate(&mut self, phys_addr: u64, order: Order) {
+    /// Deallocates a contiguous block of memory of the specified `order`.
+    pub fn deallocate(&mut self, phys_addr: u64, order: Order) -> Result<(), PmmError> {
         // NO_OP if the order is not supported.
         let order = order as usize;
         if order >= MAX_ORDER {
-            return;
+            return Err(PmmError::OrderTooLarge(order, MAX_ORDER));
         }
 
         let mut current_order = order;
@@ -210,6 +194,8 @@ impl PhysMemoryManager {
         // Update the tracking stats.
         let freed_memory = DEFAULT_PAGE_SIZE.shl(order) as u64;
         self.free_memory_bytes = self.free_memory_bytes.saturating_add(freed_memory);
+
+        Ok(())
     }
 
     /// Converts a physical address to a virtual address using the HHDM offset.
