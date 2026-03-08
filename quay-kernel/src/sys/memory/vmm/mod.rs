@@ -12,11 +12,20 @@ pub mod error;
 pub mod map_flags;
 pub mod page_size;
 
-use crate::sys::memory::pmm::DEFAULT_PAGE_SIZE;
 pub use error::VmmError;
-use log::error;
 pub use map_flags::MapFlags;
 pub use page_size::PageSize;
+
+use crate::arch::x86_64::vmm::X86Mapper;
+use crate::sys::memory::pmm::DEFAULT_PAGE_SIZE;
+use log::error;
+use spin::{Mutex, MutexGuard, Once};
+use x86_64::VirtAddr;
+use x86_64::registers::control::Cr3;
+use x86_64::structures::paging::{OffsetPageTable, PageTable};
+
+/// Global VMM instance.
+pub static VMM: Once<Mutex<X86Mapper<'static>>> = Once::new();
 
 /// Core trait that every architecture (x86, ARM, RISC-V) must implement.
 pub trait VirtualMapper<'a> {
@@ -36,6 +45,34 @@ pub trait VirtualMapper<'a> {
 
     /// Unmaps a virtual address, returning the physical address it was pointing to.
     fn unmap_page(&mut self, virt_addr: u64) -> Result<u64, VmmError>;
+}
+
+pub fn init(hhdm_offset: u64) {
+    // Read the CR3 register to find the physical address of the Level4 Page Table.
+    let (level_4_table_frame, _) = Cr3::read();
+    let phys_addr = level_4_table_frame.start_address().as_u64();
+
+    // Convert that physical address to a virtual address using the HHDM offset.
+    let virt_addr = phys_addr.saturating_add(hhdm_offset);
+
+    // Cast the virtual address into a mutable Rust reference to the PageTable struct.
+    // Safety: This memory is valid because the CPU is actively using it right now!
+    let level_4_table: &'static mut PageTable = unsafe { &mut *(virt_addr as *mut PageTable) };
+
+    // Create the x86_64 crate's OffsetPageTable mapper.
+    let mapper = unsafe { OffsetPageTable::new(level_4_table, VirtAddr::new(hhdm_offset)) };
+
+    // Wrap it in the custom X86Mapper and store it in the global static.
+    let x86_mapper = X86Mapper::new(mapper);
+
+    VMM.call_once(|| Mutex::new(x86_mapper));
+
+    log::info!("VMM initialized using CR3 frame at {:#X}", phys_addr);
+}
+
+/// A clean helper function to grab the VMM lock from anywhere in the kernel.
+pub fn get_vmm() -> MutexGuard<'static, X86Mapper<'static>> {
+    VMM.get().expect("VMM has not been initialized yet!").lock()
 }
 
 /// Maps a block of physical MMIO memory into the HHDM, automatically using 2MiB pages if the

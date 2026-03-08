@@ -85,6 +85,12 @@ pub struct X86Mapper<'a> {
     inner: OffsetPageTable<'a>,
 }
 
+impl<'a> X86Mapper<'a> {
+    pub fn new(page_table: OffsetPageTable<'a>) -> Self {
+        Self { inner: page_table }
+    }
+}
+
 impl<'a> VirtualMapper<'a> for X86Mapper<'a> {
     unsafe fn map_page(
         &mut self,

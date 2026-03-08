@@ -16,5 +16,6 @@
 //! Responsible for managing the heap memory of the kernel space. This is a simple interface on top
 //! of [talc]. It provides the global allocator for the kernel.
 
+pub mod khm;
 pub mod pmm;
 pub mod vmm;

@@ -12,7 +12,7 @@ use core::ops::{BitAnd, BitXor, Shl};
 use core::ptr;
 use lazy_static::lazy_static;
 use limine::memory_map::{Entry, EntryType};
-use spin::Mutex;
+use spin::{Mutex, MutexGuard};
 
 lazy_static! {
     pub static ref PMM: Mutex<PhysMemoryManager> = {
@@ -273,4 +273,9 @@ impl PhysMemoryManager {
 
         false
     }
+}
+
+/// A clean helper function to grab the PMM lock from anywhere in the kernel.
+pub fn get_pmm() -> MutexGuard<'static, PhysMemoryManager> {
+    PMM.lock()
 }
