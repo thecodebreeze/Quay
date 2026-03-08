@@ -1,4 +1,4 @@
-use crate::sys::memory::pmm::{Order, PMM, PmmError};
+use crate::sys::memory::pmm::{Order, PMM, PmmError, get_pmm};
 use crate::sys::memory::vmm::{MapFlags, PageSize, VirtualMapper, VmmError};
 use core::fmt::Debug;
 use log::error;
@@ -17,7 +17,7 @@ pub struct X86FrameAllocator;
 
 unsafe impl FrameAllocator<Size4KiB> for X86FrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
-        PMM.lock()
+        get_pmm()
             .allocate(Order::Order4KiB)
             .inspect_err(|error| {
                 error!("Failed to allocate frame (4KiB): {:#?}", error);
@@ -29,7 +29,7 @@ unsafe impl FrameAllocator<Size4KiB> for X86FrameAllocator {
 
 unsafe impl FrameAllocator<Size2MiB> for X86FrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size2MiB>> {
-        PMM.lock()
+        get_pmm()
             .allocate(Order::Order2MiB)
             .inspect_err(|error| {
                 error!("Failed to allocate frame (2MiB): {:#?}", error);
@@ -41,7 +41,7 @@ unsafe impl FrameAllocator<Size2MiB> for X86FrameAllocator {
 
 unsafe impl FrameAllocator<Size1GiB> for X86FrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size1GiB>> {
-        PMM.lock()
+        get_pmm()
             .allocate(Order::Order1GiB)
             .inspect_err(|error| {
                 error!("Failed to allocate frame (1GiB): {:#?}", error);
@@ -54,7 +54,7 @@ unsafe impl FrameAllocator<Size1GiB> for X86FrameAllocator {
 impl FrameDeallocator<Size4KiB> for X86FrameAllocator {
     unsafe fn deallocate_frame(&mut self, frame: PhysFrame<Size4KiB>) {
         let phys_start = frame.start_address().as_u64();
-        if let Err(error) = PMM.lock().deallocate(phys_start, Order::Order4KiB) {
+        if let Err(error) = get_pmm().deallocate(phys_start, Order::Order4KiB) {
             error!("Failed to deallocate frame (4KiB): {:#?}", error);
         }
     }
@@ -63,7 +63,7 @@ impl FrameDeallocator<Size4KiB> for X86FrameAllocator {
 impl FrameDeallocator<Size2MiB> for X86FrameAllocator {
     unsafe fn deallocate_frame(&mut self, frame: PhysFrame<Size2MiB>) {
         let phys_start = frame.start_address().as_u64();
-        if let Err(error) = PMM.lock().deallocate(phys_start, Order::Order2MiB) {
+        if let Err(error) = get_pmm().deallocate(phys_start, Order::Order2MiB) {
             error!("Failed to deallocate frame (2MiB): {:#?}", error);
         }
     }
@@ -72,7 +72,7 @@ impl FrameDeallocator<Size2MiB> for X86FrameAllocator {
 impl FrameDeallocator<Size1GiB> for X86FrameAllocator {
     unsafe fn deallocate_frame(&mut self, frame: PhysFrame<Size1GiB>) {
         let phys_start = frame.start_address().as_u64();
-        if let Err(error) = PMM.lock().deallocate(phys_start, Order::Order1GiB) {
+        if let Err(error) = get_pmm().deallocate(phys_start, Order::Order1GiB) {
             error!("Failed to deallocate frame (1GiB): {:#?}", error);
         }
     }

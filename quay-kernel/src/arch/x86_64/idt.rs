@@ -12,8 +12,8 @@
 //! * APIC Timer
 //! * APIC Error
 
+use crate::arch::x86_64::gdt::GDT_DOUBLE_FAULT_IST_INDEX;
 use crate::arch::x86_64::isr;
-use crate::platform::gdt::DOUBLE_FAULT_IST_INDEX;
 use lazy_static::lazy_static;
 use x86_64::structures::idt::InterruptDescriptorTable;
 
@@ -39,7 +39,7 @@ lazy_static! {
 
         // Set the stack index for the double fault handler.
         unsafe {
-            double_fault.set_stack_index(DOUBLE_FAULT_IST_INDEX);
+            double_fault.set_stack_index(GDT_DOUBLE_FAULT_IST_INDEX);
         }
 
         // Hardware interrupts can be mapped on demand starting from index 32.

@@ -7,23 +7,13 @@ pub mod order;
 pub use error::PmmError;
 pub use order::Order;
 
-use crate::HHDM_REQUEST;
 use core::ops::{BitAnd, BitXor, Shl};
 use core::ptr;
-use lazy_static::lazy_static;
 use limine::memory_map::{Entry, EntryType};
-use spin::{Mutex, MutexGuard};
+use spin::{Mutex, MutexGuard, Once};
 
-lazy_static! {
-    pub static ref PMM: Mutex<PhysMemoryManager> = {
-        let hhdm_offset = HHDM_REQUEST
-            .get_response()
-            .expect("HHDM to be present")
-            .offset();
-
-        Mutex::new(PhysMemoryManager::new(hhdm_offset))
-    };
-}
+/// Global PMM instance.
+pub static PMM: Once<Mutex<PhysMemoryManager>> = Once::new();
 
 /// The PMM supports every power of 2 page size between 0 (4KiB) and 18 (1GiB).
 pub const MAX_ORDER: usize = 19;
@@ -275,7 +265,11 @@ impl PhysMemoryManager {
     }
 }
 
+pub fn initialize(hhdm_offset: u64) {
+    PMM.call_once(|| Mutex::new(PhysMemoryManager::new(hhdm_offset)));
+}
+
 /// A clean helper function to grab the PMM lock from anywhere in the kernel.
 pub fn get_pmm() -> MutexGuard<'static, PhysMemoryManager> {
-    PMM.lock()
+    PMM.get().expect("PMM has not been initialized yet!").lock()
 }

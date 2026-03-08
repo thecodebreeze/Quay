@@ -47,7 +47,7 @@ pub trait VirtualMapper<'a> {
     fn unmap_page(&mut self, virt_addr: u64) -> Result<u64, VmmError>;
 }
 
-pub fn init(hhdm_offset: u64) {
+pub fn initialize(hhdm_offset: u64) {
     // Read the CR3 register to find the physical address of the Level4 Page Table.
     let (level_4_table_frame, _) = Cr3::read();
     let phys_addr = level_4_table_frame.start_address().as_u64();

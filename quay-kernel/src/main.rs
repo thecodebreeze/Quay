@@ -5,30 +5,26 @@
 extern crate alloc;
 
 mod arch;
-mod drivers;
-mod graphics;
 mod hal;
-mod io;
-mod memory;
-mod platform;
 mod serial;
 mod sys;
 
-use crate::graphics::DoubleBuffer;
-use crate::platform::acpi::QuayAcpiHandler;
+use crate::sys::memory::pmm::PMM;
 use acpi::platform::PciConfigRegions;
 use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use embedded_graphics::Drawable;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::{DrawTarget, Point};
 use embedded_graphics::text::Text;
-use limine::BaseRevision;
+use embedded_graphics::Drawable;
 use limine::framebuffer::Framebuffer;
 use limine::request::{
     FramebufferRequest, HhdmRequest, MemoryMapRequest, ModuleRequest, RsdpRequest, StackSizeRequest,
 };
+use limine::BaseRevision;
 use log::{debug, error, info, trace};
 use x86_64::VirtAddr;
 
@@ -54,173 +50,49 @@ static HHDM_REQUEST: HhdmRequest = HhdmRequest::with_revision(5);
 #[unsafe(link_section = ".requests")]
 static MEMORY_MAP_REQUEST: MemoryMapRequest = MemoryMapRequest::with_revision(5);
 
-/// Requests the Root System Descriptor Pointer (RSDP). We use it to find the ACPI table.
-#[used]
-#[unsafe(link_section = ".requests")]
-static RSDP_REQUEST: RsdpRequest = RsdpRequest::with_revision(5);
-
-/// Request a framebuffer for graphics output.
-#[used]
-#[unsafe(link_section = ".requests")]
-static FRAMEBUFFER_REQUEST: FramebufferRequest = FramebufferRequest::with_revision(5);
-
-/// Request the Quay kernel modules.
-#[used]
-#[unsafe(link_section = ".requests")]
-static MODULE_REQUEST: ModuleRequest = ModuleRequest::with_revision(5);
-
-#[derive(Debug, serde::Deserialize)]
-pub struct QuayConfig {
-    /// GUID of the partition that contains the Quay root file system.
-    pub root_partition: String,
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
-    // Initialization sequence start!
+    // Verify bootloader compatibility.
+    assert!(
+        BASE_REVISION.is_supported(),
+        "Unsupported Limine bootloader revision"
+    );
+
+    // Setup Early Logging.
     serial::init_logger();
+    info!("=== Quay v0.0.1 ===");
+
+    // CPU Architecture Initialization.
+    // TODO: Handle this per-cpu target.
+    info!("Loading the GDT and IDT...");
     arch::x86_64::gdt::load_global_descriptor_table();
-    platform::interrupt::init_idt();
+    arch::x86_64::idt::load_interrupt_descriptor_table();
+    info!("GDT and IDT loaded!");
 
-    // Memory System Initialization.
-    lazy_static::initialize(&memory::vmm::VMM_MAPPER);
-    lazy_static::initialize(&memory::pmm::PMM);
+    // Extract bootloader data.
+    let hhdm_offset = HHDM_REQUEST
+        .get_response()
+        .expect("HHDM to be present")
+        .offset();
 
-    // Get the configuration for Quay.
-    let quay_config = load_boot_config().expect("Quay configuration to be loaded.");
-    trace!("Quay configuration: {:?}", quay_config);
+    let memory_map = MEMORY_MAP_REQUEST
+        .get_response()
+        .expect("Memory Map to be present")
+        .entries();
 
-    // Get the HHDM offset from Limine.
-    let hhdm_response = HHDM_REQUEST.get_response().expect("HHDM request failed!");
-    let hhdm_offset = VirtAddr::new(hhdm_response.offset());
+    info!("HHDM Offset: {:#X}", hhdm_offset);
 
-    // Hardware Discovery.
-    let (acpi_tables, apic_info) = discover_hardware(hhdm_offset);
-    let hpet_physical_address = platform::interrupt::timer::get_hpet_base_addr(&acpi_tables);
+    // Memory subsystem initialization.
+    info!("Initializing the memory subsystem...");
+    sys::memory::pmm::initialize(hhdm_offset);
+    sys::memory::vmm::initialize(hhdm_offset);
+    info!("Memory subsystem initialized!");
 
-    // Map Local APIC
-    memory::vmm::map_mmio(hhdm_offset.as_u64(), apic_info.local_apic_address);
-
-    // Map the HPET MMIO temporarily for calibration.
-    memory::vmm::map_mmio(hhdm_offset.as_u64(), hpet_physical_address as u64);
-
-    // Calibration
-    let hpet_virtual_address = (hpet_physical_address as u64 + hhdm_offset.as_u64()) as *mut u64;
-    let mut temp_lapic = platform::interrupt::apic::create_temp_lapic(
-        apic_info.local_apic_address,
-        hhdm_offset.as_u64(),
-    );
-    let ticks_per_ms =
-        platform::interrupt::timer::calibrate_apic_timer(&mut temp_lapic, hpet_virtual_address);
-    trace!(
-        "APIC timer calibrated. Ticks per millisecond: {}",
-        ticks_per_ms
-    );
-
-    // PCI Device enumeration via ACPI MCFG.
-    let pci_regions =
-        PciConfigRegions::new(&acpi_tables).expect("MCFG to be present in the ACPI data");
-
-    // Segment 0, Bus 0, Device 0, Function 0
-    let mcfg_base_phys_address = pci_regions
-        .physical_address(0, 0, 0, 0)
-        .expect("Failed to get MCFG base physical address");
-
-    // Map the entire 256MiB PCIe configuration space!
-    debug!("Mapping 256 MiB of PCIe ECAM MMIO space...");
-    memory::vmm::map_mmio_range(
-        mcfg_base_phys_address,
-        256 * 1024 * 1024,
-        hhdm_offset.as_u64(),
-    );
-
-    let pci_devices = platform::pci::scan_pci_devices(&pci_regions, hhdm_offset.as_u64());
-
-    pci_devices
-        .iter()
-        .filter(|device| device.class() == platform::pci::PciDeviceClass::VirtioBlock)
-        .for_each(|&device| {
-            trace!(
-                "Storage Subsystem initializing (Bus {:X}, Device {:X})...",
-                device.bus(),
-                device.device()
-            );
-
-            let mcfg_base_virt_address = mcfg_base_phys_address + hhdm_offset.as_u64();
-            if let Some(transport) = platform::pci::virtio::create_pci_transport(
-                mcfg_base_virt_address,
-                device.bus(),
-                device.device(),
-                device.function(),
-            ) {
-                drivers::virtio::block::init_block_device(transport);
-            }
-        });
-
-    // Capture the framebuffer.
-    let framebuffer = get_framebuffer();
-    graphics::log_edid_info(&framebuffer);
-    let mut display = DoubleBuffer::new(&framebuffer);
-
-    // Set up a text style using the built-in 10x20 font.
-    let text_style = MonoTextStyle::new(
-        &embedded_graphics::mono_font::iso_8859_1::FONT_7X14,
-        Rgb888::new(198, 208, 245),
-    );
-    // Clear the display.
-    display.clear(Rgb888::new(48, 52, 70)).unwrap();
-    Text::new(
-        "Welcome to Quay v0.0.1!\nDeveloped by thecodebreeze (https://github.com/thecodebreeze)",
-        Point::new(0, 14),
-        text_style,
-    )
-    .draw(&mut display)
-    .unwrap();
-    display.flush();
-
-    // Final hardware driver initialization.
-    platform::interrupt::apic::init_apic(apic_info, hhdm_offset.as_u64(), ticks_per_ms);
+    let test_vec = vec![42];
+    info!("Heap test successful! test_vec[0] = {}", test_vec[0]);
 
     info!("Initialization complete! Quay is up and running!");
     halt_and_catch_fire();
-}
-
-fn discover_hardware(
-    hhdm_offset: VirtAddr,
-) -> (
-    acpi::AcpiTables<QuayAcpiHandler>,
-    acpi::platform::interrupt::Apic,
-) {
-    let rsdp_response = RSDP_REQUEST.get_response().expect("No ACPI RSDP found!");
-    let rsdp_virt = rsdp_response.address() as u64;
-    let rsdp_phys = rsdp_virt - hhdm_offset.as_u64();
-
-    let handler = QuayAcpiHandler::new(hhdm_offset.as_u64());
-
-    let acpi_tables = unsafe {
-        // from_rsdp expects a physical address
-        acpi::AcpiTables::from_rsdp(handler.clone(), rsdp_phys as usize)
-            .expect("Failed to parse ACPI")
-    };
-
-    let apic_info =
-        platform::acpi::search_acpi_for_apic(handler, rsdp_phys as usize).expect("No APIC found!");
-
-    (acpi_tables, apic_info)
-}
-
-fn get_framebuffer<'a>() -> Framebuffer<'a> {
-    // Get the response from the framebuffer request.
-    let Some(response) = FRAMEBUFFER_REQUEST.get_response() else {
-        halt_and_catch_fire();
-    };
-
-    // If we don't have at least one framebuffer available, we bail.
-    let Some(framebuffer) = response.framebuffers().next() else {
-        halt_and_catch_fire();
-    };
-
-    framebuffer
 }
 
 /// Custom panic handler. For now, just loops forever until we have proper handling.
@@ -232,28 +104,7 @@ fn panic(info: &PanicInfo) -> ! {
 
 fn halt_and_catch_fire() -> ! {
     x86_64::instructions::interrupts::enable();
-
     loop {
         x86_64::instructions::hlt();
-    }
-}
-
-fn load_boot_config() -> Option<QuayConfig> {
-    let response = MODULE_REQUEST.get_response()?;
-    let module = response
-        .modules()
-        .iter()
-        .find(|m| m.path().to_string_lossy().to_string().ends_with("quay.ron"))?;
-
-    let data =
-        unsafe { core::slice::from_raw_parts(module.addr() as *const u8, module.size() as usize) };
-
-    // Parse it directly using RON
-    match ron::de::from_bytes::<QuayConfig>(data) {
-        Ok(config) => Some(config),
-        Err(e) => {
-            log::error!("Failed to parse quay.ron: {:?}", e);
-            None
-        }
     }
 }
