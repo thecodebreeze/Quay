@@ -40,15 +40,10 @@ impl OomHandler for KernelHeapExpander {
         let bytes_needed = layout.size().max(HEAP_EXPANSION_CHUNK as usize) as u64;
 
         // Round up to the nearest 4KiB page boundary.
-        let pages_needed = bytes_needed.saturating_add(4095).saturating_div(4096);
+        let pages_needed = bytes_needed.div_ceil(4096);
 
         let start_virt = talc.oom_handler.current_heap_end;
         let mut mapped_size = 0;
-
-        // Lock the PMM and VMM here. Adjust these lines based on
-        // how you defined your global instances (e.g., spin::Mutex).
-        let mut pmm = get_pmm();
-        let mut vmm = get_vmm();
 
         let map_flags = MapFlags::PRESENT | MapFlags::WRITABLE | MapFlags::NO_EXECUTE;
 
@@ -56,8 +51,8 @@ impl OomHandler for KernelHeapExpander {
         for _ in 0..pages_needed {
             let virt_addr = start_virt.saturating_add(mapped_size);
 
-            // Ask the PMM for a 4KiB frame.
-            let phys_addr = match pmm.allocate(Order::Order4KiB) {
+            // Acquire the PMM lock just to allocate and drop it immediately.
+            let phys_addr = match get_pmm().allocate(Order::Order4KiB) {
                 Ok(addr) => addr,
                 Err(error) => {
                     log::error!("KHM OOM: PMM exhausted while expanding heap: {}", error);
@@ -68,16 +63,16 @@ impl OomHandler for KernelHeapExpander {
             // Map it using the architecture-agnostic VMM trait.
             unsafe {
                 if let Err(error) =
-                    vmm.map_page(virt_addr, phys_addr, PageSize::Size4KiB, map_flags)
+                    get_vmm().map_page(virt_addr, phys_addr, PageSize::Size4KiB, map_flags)
                 {
                     error!("KHM OOM: VMM failed to map heap page: {}", error);
                     // Critical failure: allocated physical RAM but couldn't map it.
-                    let _ = pmm.deallocate(phys_addr, Order::Order4KiB);
+                    let _ = get_pmm().deallocate(phys_addr, Order::Order4KiB);
                     return Err(());
                 }
             }
 
-            mapped_size += 4096;
+            mapped_size = mapped_size.saturating_add(4096);
         }
 
         // Update the tracking variable.

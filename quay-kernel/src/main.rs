@@ -15,16 +15,16 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
+use embedded_graphics::Drawable;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::{DrawTarget, Point};
 use embedded_graphics::text::Text;
-use embedded_graphics::Drawable;
+use limine::BaseRevision;
 use limine::framebuffer::Framebuffer;
 use limine::request::{
     FramebufferRequest, HhdmRequest, MemoryMapRequest, ModuleRequest, RsdpRequest, StackSizeRequest,
 };
-use limine::BaseRevision;
 use log::{debug, error, info, trace};
 use x86_64::VirtAddr;
 
@@ -84,12 +84,9 @@ pub extern "C" fn _start() -> ! {
 
     // Memory subsystem initialization.
     info!("Initializing the memory subsystem...");
-    sys::memory::pmm::initialize(hhdm_offset);
+    sys::memory::pmm::initialize(hhdm_offset, memory_map);
     sys::memory::vmm::initialize(hhdm_offset);
     info!("Memory subsystem initialized!");
-
-    let test_vec = vec![42];
-    info!("Heap test successful! test_vec[0] = {}", test_vec[0]);
 
     info!("Initialization complete! Quay is up and running!");
     halt_and_catch_fire();

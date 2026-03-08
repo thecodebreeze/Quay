@@ -265,8 +265,13 @@ impl PhysMemoryManager {
     }
 }
 
-pub fn initialize(hhdm_offset: u64) {
-    PMM.call_once(|| Mutex::new(PhysMemoryManager::new(hhdm_offset)));
+pub fn initialize(hhdm_offset: u64, memory_map: &[&Entry]) {
+    PMM.call_once(|| {
+        let mut pmm = PhysMemoryManager::new(hhdm_offset);
+        pmm.init(memory_map);
+
+        Mutex::new(pmm)
+    });
 }
 
 /// A clean helper function to grab the PMM lock from anywhere in the kernel.
