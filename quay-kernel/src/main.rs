@@ -5,28 +5,15 @@
 extern crate alloc;
 
 mod arch;
+mod drivers;
 mod hal;
 mod serial;
 mod sys;
 
-use crate::sys::memory::pmm::PMM;
-use acpi::platform::PciConfigRegions;
-use alloc::string::{String, ToString};
-use alloc::vec;
-use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use embedded_graphics::Drawable;
-use embedded_graphics::mono_font::MonoTextStyle;
-use embedded_graphics::pixelcolor::Rgb888;
-use embedded_graphics::prelude::{DrawTarget, Point};
-use embedded_graphics::text::Text;
 use limine::BaseRevision;
-use limine::framebuffer::Framebuffer;
-use limine::request::{
-    FramebufferRequest, HhdmRequest, MemoryMapRequest, ModuleRequest, RsdpRequest, StackSizeRequest,
-};
-use log::{debug, error, info, trace};
-use x86_64::VirtAddr;
+use limine::request::{HhdmRequest, MemoryMapRequest, RsdpRequest, StackSizeRequest};
+use log::{error, info};
 
 /// Set the Limine base revision.
 /// Without this tag, the bootloader will assume revision 0, which we don't want.
@@ -49,6 +36,11 @@ static HHDM_REQUEST: HhdmRequest = HhdmRequest::with_revision(5);
 #[used]
 #[unsafe(link_section = ".requests")]
 static MEMORY_MAP_REQUEST: MemoryMapRequest = MemoryMapRequest::with_revision(5);
+
+/// Request the RSDP (ACPI Root System Description Pointer).
+#[used]
+#[unsafe(link_section = ".requests")]
+static RSDP_REQUEST: RsdpRequest = RsdpRequest::with_revision(5);
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
@@ -87,6 +79,12 @@ pub extern "C" fn _start() -> ! {
     sys::memory::pmm::initialize(hhdm_offset, memory_map);
     sys::memory::vmm::initialize(hhdm_offset);
     info!("Memory subsystem initialized!");
+
+    // Configure the APIC.
+    info!("Configuring the APIC...");
+    arch::x86_64::pic::disable_legacy_pic();
+    arch::x86_64::apic::load_global_lapic_address(hhdm_offset);
+    info!("APIC configured!");
 
     info!("Initialization complete! Quay is up and running!");
     halt_and_catch_fire();

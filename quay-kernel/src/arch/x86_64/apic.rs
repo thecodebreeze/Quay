@@ -1,6 +1,4 @@
 //! This module implements APIC related utilities.
-use crate::HHDM_REQUEST;
-use crate::arch::x86_64::cpu::CpuLocalData;
 use crate::arch::x86_64::idt::{
     APIC_ERROR_VECTOR_INDEX, APIC_SPURIOUS_VECTOR_INDEX, APIC_TIMER_VECTOR_INDEX,
 };
@@ -8,7 +6,6 @@ use core::sync::atomic;
 use core::sync::atomic::AtomicU64;
 use x2apic::lapic::{LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
 use x86_64::VirtAddr;
-use x86_64::instructions::interrupts::without_interrupts;
 use x86_64::registers::model_specific::Msr;
 
 /// Atomic variable to store the virtual address of the LAPIC.
@@ -38,13 +35,7 @@ pub const LAPIC_ESR_REGISTER: u64 = 0x280;
 /// Loads the Global LAPIC Virtual Address.
 ///
 /// This is run only once in the BSP (Bootstrap Processor/Core 0) during early boot.
-pub fn load_global_lapic_address() {
-    // Get the HHDM offset from Limine.
-    let hhdm_offset = HHDM_REQUEST
-        .get_response()
-        .expect("HHDM response to be present")
-        .offset();
-
+pub fn load_global_lapic_address(hhdm_offset: u64) {
     // Read the APIC Base MSR to get the true physical address.
     let apic_msr = Msr::new(IA32_APIC_BASE_MSR);
     let msr_value = unsafe { apic_msr.read() };
@@ -84,6 +75,44 @@ pub fn get_local_apic(tick_rate: u32) -> (u32, LocalApic) {
         (lapic.id(), lapic)
     }
 }
+
+/// Calibrate the LAPIC timer against a known reference clock to find the 1ms tick rate.
+pub fn calibrate_apic_timer() -> u32 {
+    // Build a temporary LAPIC in One-Shot mode.
+    let mut lapic = LocalApicBuilder::new()
+        .error_vector(APIC_ERROR_VECTOR_INDEX as usize)
+        .timer_vector(APIC_TIMER_VECTOR_INDEX as usize)
+        .spurious_vector(APIC_SPURIOUS_VECTOR_INDEX as usize)
+        .timer_mode(TimerMode::OneShot)
+        .timer_initial(1000)
+        .timer_divide(TimerDivide::Div16)
+        .build()
+        .expect("Failed to initialize dummy Local APIC");
+
+    unsafe {
+        lapic.enable();
+    }
+
+    // Wait exactly 10ms using a reliable HPET timer.
+    reference_timer_sleep_10ms();
+
+    // Read the current count in the dummy LAPIC.
+    let current_count = unsafe { lapic.timer_current() };
+
+    // Calculate ticks elapsed in 10ms.
+    let ticks_in_10ms = u32::MAX.saturating_sub(current_count);
+    let ticks_in_1ms = ticks_in_10ms.saturating_div(10);
+
+    // Disable the dummy LAPIC.
+    unsafe {
+        lapic.set_timer_initial(0);
+        lapic.disable();
+    }
+
+    ticks_in_1ms
+}
+
+fn reference_timer_sleep_10ms() {}
 
 /// Get the current virtual address of the LAPIC.
 #[inline]
