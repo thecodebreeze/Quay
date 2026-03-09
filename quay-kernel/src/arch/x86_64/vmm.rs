@@ -2,7 +2,7 @@ use crate::sys::memory::pmm::{Order, PmmError, get_pmm};
 use crate::sys::memory::vmm::{MapFlags, PageSize, VirtualMapper, VmmError};
 use core::fmt::Debug;
 use log::error;
-use x86_64::structures::paging::PageSize as X86PageSize;
+use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::{
     MapToError, MappedFrame, MapperFlush, TranslateResult, UnmapError,
 };
@@ -10,6 +10,7 @@ use x86_64::structures::paging::{
     FrameAllocator, FrameDeallocator, Mapper, OffsetPageTable, Page, PageTableFlags, PhysFrame,
     Size1GiB, Size2MiB, Size4KiB, Translate,
 };
+use x86_64::structures::paging::{PageSize as X86PageSize, PageTable};
 use x86_64::{PhysAddr, VirtAddr};
 
 /// A wrapper to bridge the platform-agnostic PMM to the x86_64 page allocator.
@@ -78,6 +79,31 @@ impl FrameDeallocator<Size1GiB> for X86FrameAllocator {
     }
 }
 
+/// Expose the concrete Mapper type so the agnostic VMM knows what to lock inside.
+pub type ActiveMapper = X86Mapper<'static>;
+
+/// Extracts the active Level4 Page Table from the CR3 register and wraps it in the concrete mapper
+/// type.
+pub fn create_mapper(hhdm_offset: u64) -> ActiveMapper {
+    // Read the CR3 register to find the physical address of the Level4 Page Table.
+    let (level_4_table_frame, _) = Cr3::read();
+    let phys_addr = level_4_table_frame.start_address().as_u64();
+
+    // Convert that physical address to a virtual address using the HHDM offset.
+    let virt_addr = phys_addr.saturating_add(hhdm_offset);
+
+    // Cast the virtual address into a mutable Rust reference to the PageTable struct.
+    // Safety: This memory is valid because the CPU is actively using it right now!
+    let level_4_table: &'static mut PageTable = unsafe { &mut *(virt_addr as *mut PageTable) };
+
+    // Create the x86_64 crate's OffsetPageTable mapper.
+    let mapper = unsafe { OffsetPageTable::new(level_4_table, VirtAddr::new(hhdm_offset)) };
+
+    // Wrap it in the custom X86Mapper and store it in the global static.
+    log::info!("VMM initialized using CR3 frame at {:#X}", phys_addr);
+    X86Mapper::new(mapper)
+}
+
 /// Virtual Memory Mapper.
 ///
 /// This mapper implements the [VirtualMapper] trait and wraps a [OffsetPageTable].
@@ -91,7 +117,7 @@ impl<'a> X86Mapper<'a> {
     }
 }
 
-impl<'a> VirtualMapper<'a> for X86Mapper<'a> {
+impl<'a> VirtualMapper for X86Mapper<'a> {
     unsafe fn map_page(
         &mut self,
         virt_addr: u64,
