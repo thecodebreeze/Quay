@@ -8,8 +8,8 @@ use core::sync::atomic;
 use core::sync::atomic::AtomicU64;
 use log::{error, info, trace};
 use x2apic::lapic::{LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
-use x86_64::registers::model_specific::Msr;
 use x86_64::VirtAddr;
+use x86_64::registers::model_specific::Msr;
 
 /// Atomic variable to store the virtual address of the LAPIC.
 static LAPIC_VADDR: AtomicU64 = AtomicU64::new(0);

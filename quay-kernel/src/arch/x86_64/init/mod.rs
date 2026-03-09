@@ -27,8 +27,7 @@ pub fn initialize_hardware(rsdp_phys_addr: u64, rsdp_virt_addr: u64, hhdm_offset
     info!("Configuring the APIC...");
     super::pic::disable_legacy_pic();
 
-    let (lapic_id, lapic) =
-        super::apic::initialize_local_apic(lapic_phys_addr, hhdm_offset);
+    let (lapic_id, lapic) = super::apic::initialize_local_apic(lapic_phys_addr, hhdm_offset);
     info!("APIC configured! LAPIC ID: {}", lapic_id);
 
     // 4. Load the CPU Local Data

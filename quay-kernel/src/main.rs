@@ -11,8 +11,8 @@ mod serial;
 mod sys;
 
 use core::panic::PanicInfo;
-use limine::request::{HhdmRequest, MemoryMapRequest, RsdpRequest, StackSizeRequest};
 use limine::BaseRevision;
+use limine::request::{HhdmRequest, MemoryMapRequest, RsdpRequest, StackSizeRequest};
 use log::{debug, error, info};
 
 // ============================================================================
