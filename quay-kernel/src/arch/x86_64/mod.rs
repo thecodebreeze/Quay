@@ -9,5 +9,6 @@ pub mod gdt;
 pub mod idt;
 mod isr;
 pub mod pic;
+pub mod port_io;
 pub mod timer;
 pub mod vmm;

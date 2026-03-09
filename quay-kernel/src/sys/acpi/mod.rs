@@ -1,3 +1,4 @@
+use crate::arch;
 use crate::arch::target::timer;
 use acpi::aml::AmlError;
 use acpi::{AcpiTables, Handle, PciAddress, PhysicalMapping};
@@ -19,15 +20,8 @@ impl QuayAcpiHandler {
         Self { hhdm_offset }
     }
 
-    /// Fetches the global interrupt manager for the current platform.
-    ///
-    /// Since the ACPI consortium thought it was easier to just reuse it, these can use across
-    /// platforms.
-    ///
-    /// In:
-    ///     * `x86_64` -> `APIC`
-    ///     * `aarch64` -> `GIC`
-    ///     * `rv64` -> `PLIC` (or `AIA`)
+    /// Fetches the Local APIC physical address in memory from the MDAT.
+    #[cfg(target_arch = "x86_64")]
     pub fn get_lapic_phys_addr(&self, rsdp_address: u64) -> u64 {
         // Convert the virtual address to a physical address.
         let virt_addr = rsdp_address.saturating_sub(self.hhdm_offset);
@@ -109,27 +103,27 @@ impl acpi::Handler for QuayAcpiHandler {
     }
 
     fn read_io_u8(&self, port: u16) -> u8 {
-        unsafe { PortReadOnly::<u8>::new(port).read() }
+        arch::target::port_io::read_u8(port)
     }
 
     fn read_io_u16(&self, port: u16) -> u16 {
-        unsafe { PortReadOnly::<u16>::new(port).read() }
+        arch::target::port_io::read_u16(port)
     }
 
     fn read_io_u32(&self, port: u16) -> u32 {
-        unsafe { PortReadOnly::<u32>::new(port).read() }
+        arch::target::port_io::read_u32(port)
     }
 
     fn write_io_u8(&self, port: u16, value: u8) {
-        unsafe { PortWriteOnly::<u8>::new(port).write(value) }
+        arch::target::port_io::write_u8(port, value);
     }
 
     fn write_io_u16(&self, port: u16, value: u16) {
-        unsafe { PortWriteOnly::<u16>::new(port).write(value) }
+        arch::target::port_io::write_u16(port, value);
     }
 
     fn write_io_u32(&self, port: u16, value: u32) {
-        unsafe { PortWriteOnly::<u32>::new(port).write(value) }
+        arch::target::port_io::write_u32(port, value);
     }
 
     fn read_pci_u8(&self, _address: PciAddress, _offset: u16) -> u8 {
