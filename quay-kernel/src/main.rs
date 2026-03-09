@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(abi_x86_interrupt)]
+#![cfg_attr(target_arch = "x86_64", feature(abi_x86_interrupt))]
 
 extern crate alloc;
 
@@ -11,9 +11,13 @@ mod serial;
 mod sys;
 
 use core::panic::PanicInfo;
-use limine::BaseRevision;
 use limine::request::{HhdmRequest, MemoryMapRequest, RsdpRequest, StackSizeRequest};
-use log::{error, info};
+use limine::BaseRevision;
+use log::{debug, error, info};
+
+// ============================================================================
+// Bootloader Requests
+// ============================================================================
 
 /// Set the Limine base revision.
 /// Without this tag, the bootloader will assume revision 0, which we don't want.
@@ -42,78 +46,89 @@ static MEMORY_MAP_REQUEST: MemoryMapRequest = MemoryMapRequest::with_revision(5)
 #[unsafe(link_section = ".requests")]
 static RSDP_REQUEST: RsdpRequest = RsdpRequest::with_revision(5);
 
+// ============================================================================
+// Kernel Entry Point
+// ============================================================================
+
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
-    // Verify bootloader compatibility.
+    // 1. Verify bootloader compatibility.
     assert!(
         BASE_REVISION.is_supported(),
         "Unsupported Limine bootloader revision"
     );
 
-    // Setup Early Logging.
+    // 2. Early Logging Subsystem.
     serial::init_logger();
-    info!("=== Quay v0.0.1 ===");
+    info!("========================================");
+    info!("             Quay v0.0.1                ");
+    info!("========================================");
 
-    // CPU Architecture Initialization.
-    // TODO: Handle this per-cpu target.
-    info!("Loading the GDT and IDT...");
-    arch::x86_64::gdt::load_global_descriptor_table();
-    arch::x86_64::idt::load_interrupt_descriptor_table();
-    info!("GDT and IDT loaded!");
+    // 3. Early CPU Initialization.
+    info!("[1/4] Initializing CPU architecture...");
+    arch::target::init::initialize_cpu();
 
-    // Extract bootloader data.
+    // 4. Extract Bootloader Data.
+    info!("[2/4] Extracting bootloader data...");
     let hhdm_offset = HHDM_REQUEST
         .get_response()
-        .expect("HHDM to be present")
+        .expect("Bootloader did not provide HHDM offset")
         .offset();
+
+    let rsdp_virt_address = RSDP_REQUEST
+        .get_response()
+        .expect("Bootloader did not provide RSDP address")
+        .address() as u64;
 
     let memory_map = MEMORY_MAP_REQUEST
         .get_response()
-        .expect("Memory Map to be present")
+        .expect("Bootloader did not provide Memory Map")
         .entries();
 
-    info!("HHDM Offset: {:#X}", hhdm_offset);
+    debug!("  -> HHDM Offset: {:#X}", hhdm_offset);
+    debug!("  -> RSDP Virtual Address: {:#X}", rsdp_virt_address);
+    debug!("  -> Memory Map entries: {}", memory_map.len());
 
-    // Memory subsystem initialization.
-    info!("Initializing the memory subsystem...");
+    // 5. Memory Subsystem Initialization.
+    info!("[3/4] Initializing the memory subsystem...");
     sys::memory::pmm::initialize(hhdm_offset, memory_map);
     sys::memory::vmm::initialize(hhdm_offset);
-    info!("Memory subsystem initialized!");
+    info!("  -> Memory subsystem initialized!");
 
-    // Hardware discovery.
-    let rsdp_address = RSDP_REQUEST
-        .get_response()
-        .expect("RSDP to be present")
-        .address();
-    let acpi_handler = sys::acpi::QuayAcpiHandler::new(hhdm_offset);
-    let lapic_phys_addr = acpi_handler.get_lapic_phys_addr(rsdp_address as u64);
+    // 6. Hardware Discovery & Initialization.
+    info!("[4/4] Discovering and initializing hardware...");
+    let rsdp_phys_addr = rsdp_virt_address.saturating_sub(hhdm_offset);
 
-    // Configure the APIC.
-    info!("Configuring the APIC...");
-    arch::x86_64::pic::disable_legacy_pic();
-    let (lapic_id, lapic) =
-        arch::x86_64::apic::initialize_local_apic(lapic_phys_addr, hhdm_offset, 10_000_000);
-    info!("APIC configured!");
+    // Delegate hardware specifics to the active architecture
+    arch::target::init::initialize_hardware(rsdp_phys_addr, rsdp_virt_address, hhdm_offset);
 
-    // Load the CPU data.
-    info!("Loading CPU data...");
-    arch::x86_64::cpu::CpuLocalData::load(lapic_id, lapic);
-    info!("CPU data loaded!");
+    // 7. System Ready!
+    info!("========================================");
+    info!(" Initialization complete! Quay is alive!");
+    info!("========================================");
 
-    info!("Initialization complete! Quay is up and running!");
+    arch::target::init::enable_interrupts();
     halt_and_catch_fire();
 }
 
-/// Custom panic handler. For now, just loops forever until we have proper handling.
+// ============================================================================
+// Panic & Halt Handlers
+// ============================================================================
+
+/// Custom panic handler.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    error!("Kernel panic: {}", info);
+    error!("========================================");
+    error!("             KERNEL PANIC               ");
+    error!("========================================");
+    error!("{}", info);
+    error!("========================================");
     halt_and_catch_fire();
 }
 
+/// Halts the CPU continuously.
 fn halt_and_catch_fire() -> ! {
-    x86_64::instructions::interrupts::enable();
     loop {
-        x86_64::instructions::hlt();
+        arch::target::init::halt();
     }
 }

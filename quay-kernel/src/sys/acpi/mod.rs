@@ -1,10 +1,8 @@
-use crate::arch;
-use crate::arch::target::timer;
+use crate::{arch, sys};
 use acpi::aml::AmlError;
 use acpi::{AcpiTables, Handle, PciAddress, PhysicalMapping};
 use core::ptr;
 use log::trace;
-use x86_64::instructions::port::{PortReadOnly, PortWriteOnly};
 
 /// ACPI Handler is used to interact with the ACPI standard.
 ///
@@ -24,12 +22,12 @@ impl QuayAcpiHandler {
     #[cfg(target_arch = "x86_64")]
     pub fn get_lapic_phys_addr(&self, rsdp_address: u64) -> u64 {
         // Convert the virtual address to a physical address.
-        let virt_addr = rsdp_address.saturating_sub(self.hhdm_offset);
+        let phys_addr = rsdp_address.saturating_sub(self.hhdm_offset);
 
         // Fetch the RSDT/XSDT.
-        trace!("Fetching the ACPI Tables ({:#X})...", virt_addr);
+        trace!("Fetching the ACPI Tables ({:#X})...", phys_addr);
         let tables = unsafe {
-            AcpiTables::from_rsdp(*self, virt_addr as usize).expect("ACPI tables to be present")
+            AcpiTables::from_rsdp(*self, phys_addr as usize).expect("ACPI tables to be present")
         };
 
         // Fetch the MADT.
@@ -151,17 +149,15 @@ impl acpi::Handler for QuayAcpiHandler {
     }
 
     fn nanos_since_boot(&self) -> u64 {
-        // TODO: update the time driver to support nanoseconds.
-        timer::get_system_ticks().saturating_mul(1_000_000)
+        sys::time::nanos_since_boot()
     }
 
-    fn stall(&self, _microseconds: u64) {
-        // TODO: update the time driver to support microseconds.
-        timer::spin_delay_ms(1);
+    fn stall(&self, microseconds: u64) {
+        sys::time::stall_us(microseconds);
     }
 
     fn sleep(&self, milliseconds: u64) {
-        timer::spin_delay_ms(milliseconds);
+        sys::time::sleep_ms(milliseconds);
     }
 
     fn create_mutex(&self) -> Handle {

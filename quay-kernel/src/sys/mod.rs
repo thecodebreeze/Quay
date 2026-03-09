@@ -2,3 +2,4 @@
 
 pub mod acpi;
 pub mod memory;
+pub mod time;
