@@ -1,4 +1,3 @@
-use crate::arch::x86_64::apic::get_local_apic;
 use alloc::boxed::Box;
 use spin::{Mutex, MutexGuard};
 use x2apic::lapic::LocalApic;
@@ -17,10 +16,7 @@ pub struct CpuLocalData {
 
 impl CpuLocalData {
     /// Initialize and load the CpuLocalData into the GS MSR register.
-    pub fn load(tick_rate: u32) {
-        // Initialize this core's LAPIC.
-        let (lapic_id, lapic) = get_local_apic(tick_rate);
-
+    pub fn load(lapic_id: u32, lapic: LocalApic) {
         // Create the instance of this struct on the heap.
         let cpu_data = Box::new(CpuLocalData {
             lapic_id,

@@ -60,12 +60,12 @@ pub extern "x86-interrupt" fn handler(stack_frame: InterruptStackFrame, error_co
         // TODO: This is recoverable and must return SIGSEGV or SIGILL and then kill the task.
         panic!(
             r#"
-            ### GENERAL PROTECTION FAULT ###
-                Error Code: Untraceable (0x0)
-                Instruction Pointer: {:#X}
-                Stack Frame:
-                    {:#?}
-            "#,
+### GENERAL PROTECTION FAULT ###
+    Error Code: Untraceable (0x0)
+    Instruction Pointer: {:#X}
+    Stack Frame:
+{:#?}
+"#,
             stack_frame.instruction_pointer.as_u64(),
             stack_frame
         )

@@ -80,11 +80,25 @@ pub extern "C" fn _start() -> ! {
     sys::memory::vmm::initialize(hhdm_offset);
     info!("Memory subsystem initialized!");
 
+    // Hardware discovery.
+    let rsdp_address = RSDP_REQUEST
+        .get_response()
+        .expect("RSDP to be present")
+        .address();
+    let acpi_handler = sys::acpi::QuayAcpiHandler::new(hhdm_offset);
+    let lapic_phys_addr = acpi_handler.get_lapic_phys_addr(rsdp_address as u64);
+
     // Configure the APIC.
     info!("Configuring the APIC...");
     arch::x86_64::pic::disable_legacy_pic();
-    arch::x86_64::apic::load_global_lapic_address(hhdm_offset);
+    let (lapic_id, lapic) =
+        arch::x86_64::apic::initialize_local_apic(lapic_phys_addr, hhdm_offset, 10_000_000);
     info!("APIC configured!");
+
+    // Load the CPU data.
+    info!("Loading CPU data...");
+    arch::x86_64::cpu::CpuLocalData::load(lapic_id, lapic);
+    info!("CPU data loaded!");
 
     info!("Initialization complete! Quay is up and running!");
     halt_and_catch_fire();

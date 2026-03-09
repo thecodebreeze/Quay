@@ -55,13 +55,13 @@ pub extern "x86-interrupt" fn handler(stack_frame: InterruptStackFrame) {
     // Log the incident.
     debug!(
         r#"
-            ### APIC ERROR ###
-                ESR Value: {:#010X}
-                Error Flags: {:?}
-                Instruction Pointer: {:#X}
-                Stack Frame:
-                    {:#?}
-            "#,
+        ### APIC ERROR ###
+            ESR Value: {:#010X}
+            Error Flags: {:?}
+            Instruction Pointer: {:#X}
+            Stack Frame:
+        {:#?}
+        "#,
         error_value,
         error_flags,
         stack_frame.instruction_pointer.as_u64(),

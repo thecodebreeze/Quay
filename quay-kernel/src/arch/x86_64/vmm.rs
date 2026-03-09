@@ -1,4 +1,4 @@
-use crate::sys::memory::pmm::{Order, PMM, PmmError, get_pmm};
+use crate::sys::memory::pmm::{Order, PmmError, get_pmm};
 use crate::sys::memory::vmm::{MapFlags, PageSize, VirtualMapper, VmmError};
 use core::fmt::Debug;
 use log::error;
