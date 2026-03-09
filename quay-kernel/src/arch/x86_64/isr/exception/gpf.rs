@@ -56,36 +56,24 @@ impl GeneralProtectionFaultErrorCode {
 /// Handles the general protection fault interrupt event.
 pub extern "x86-interrupt" fn handler(stack_frame: InterruptStackFrame, error_code: u64) {
     let error_code = GeneralProtectionFaultErrorCode::from_bits_truncate(error_code);
-    if error_code.is_untraceable() {
-        // TODO: This is recoverable and must return SIGSEGV or SIGILL and then kill the task.
-        panic!(
-            r#"
-### GENERAL PROTECTION FAULT ###
-    Error Code: Untraceable (0x0)
-    Instruction Pointer: {:#X}
-    Stack Frame:
-{:#?}
-"#,
-            stack_frame.instruction_pointer.as_u64(),
-            stack_frame
-        )
-    } else {
-        panic!(
-            r#"
-            ### GENERAL PROTECTION FAULT ###
-                Error Code: {:#06X} (External: {})
-                Faulting Table: {}
-                Faulting Selector Index: {}
-                Instruction Pointer: {}
-                Stack Frame:
-                    {:#?}
-            "#,
-            error_code.bits(),
-            error_code.contains(GeneralProtectionFaultErrorCode::EXTERNAL),
-            error_code.table_name(),
-            error_code.selector_index(),
-            stack_frame.instruction_pointer.as_u64(),
-            stack_frame
-        )
-    }
+    panic!(
+        "\n\
+        ================================================================\n\
+        |                  GENERAL PROTECTION FAULT                    |\n\
+        ================================================================\n\
+        | Error Code:          {:#018X}                      |\n\
+        |--------------------------------------------------------------|\n\
+        | Instruction Pointer: {:<39?} |\n\
+        | Stack Pointer:       {:<39?} |\n\
+        | CPU Flags:           {:<39?} |\n\
+        | Code Segment:        {:<39?} |\n\
+        | Stack Segment:       {:<39?} |\n\
+        ================================================================",
+        error_code,
+        stack_frame.instruction_pointer,
+        stack_frame.stack_pointer,
+        stack_frame.cpu_flags,
+        stack_frame.code_segment,
+        stack_frame.stack_segment
+    );
 }

@@ -8,14 +8,15 @@ pub extern "x86-interrupt" fn handler(stack_frame: InterruptStackFrame) {
 
     if is_userspace {
         debug!(
-            r#"
-            ### DIVIDE ERROR ###
-                Instruction Pointer: {:#X}
-                Stack Frame:
-                    {:#?}
-            "#,
-            stack_frame.instruction_pointer.as_u64(),
-            stack_frame
+            "\n\
+            ================================================================\n\
+            |                       DIVIDE BY ZERO                         |\n\
+            ================================================================\n\
+            | Instruction Pointer: {:<39?} |\n\
+            | Stack Pointer:       {:<39?} |\n\
+            | CPU Flags:           {:<39?} |\n\
+            ================================================================",
+            stack_frame.instruction_pointer, stack_frame.stack_pointer, stack_frame.cpu_flags
         );
 
         // TODO: Terminate the offending process/thread.
@@ -24,14 +25,15 @@ pub extern "x86-interrupt" fn handler(stack_frame: InterruptStackFrame) {
         // TODO: hijack the instruction_pointer as well to trigger a task-cleanup on the OS.
     } else {
         panic!(
-            r#"
-            ### DIVIDE ERROR ###
-                Instruction Pointer: {:#X}
-                Stack Frame:
-                    {:#?}
-            "#,
-            stack_frame.instruction_pointer.as_u64(),
-            stack_frame
-        )
+            "\n\
+            ================================================================\n\
+            |                       DIVIDE BY ZERO                         |\n\
+            ================================================================\n\
+            | Instruction Pointer: {:<39?} |\n\
+            | Stack Pointer:       {:<39?} |\n\
+            | CPU Flags:           {:<39?} |\n\
+            ================================================================",
+            stack_frame.instruction_pointer, stack_frame.stack_pointer, stack_frame.cpu_flags
+        );
     }
 }

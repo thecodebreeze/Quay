@@ -121,7 +121,8 @@ fn panic(info: &PanicInfo) -> ! {
     error!("========================================");
     error!("             KERNEL PANIC               ");
     error!("========================================");
-    error!("{}", info);
+    error!("Location: {:?}", info.location());
+    error!("Message: {}", info.message());
     error!("========================================");
     halt_and_catch_fire();
 }

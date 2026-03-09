@@ -67,7 +67,7 @@ qemu:
     qemu-system-x86_64 \
         -M q35 \
         -accel kvm \
-        -cpu host \
+        -cpu host,+invtsc \
         -m 16G \
         -bios /usr/share/ovmf/OVMF.fd \
         -display gtk,gl=on \
