@@ -16,9 +16,9 @@ limine = { version = "0.5.0", features = ["uuid"] }
 x86_64 = { version = "0.15.4" }
 talc = { version = "4.4.3" }
 pc-keyboard = { version = "0.8.0" }
-acpi = { version = "6.1.0" }
+acpi = { version = "6.1.1" }
 x2apic = { version = "0.5.0" }
-virtio-drivers = { version = "0.13.0" }
+virtio-drivers = { version = "0.13.0", default-features = false, features = ["alloc"] }
 raw-cpuid = { version = "11.6.0", default-features = false }
 
 # Communications

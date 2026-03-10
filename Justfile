@@ -79,4 +79,5 @@ qemu:
         -device virtio-rng-pci \
         -device virtio-keyboard-pci \
         -device virtio-mouse-pci \
+        -device qemu-xhci \
         -serial stdio

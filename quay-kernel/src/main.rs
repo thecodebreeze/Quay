@@ -1,3 +1,4 @@
+#![feature(allocator_api)]
 #![no_std]
 #![no_main]
 #![cfg_attr(target_arch = "x86_64", feature(abi_x86_interrupt))]
@@ -97,10 +98,9 @@ pub extern "C" fn _start() -> ! {
 
     // 6. Hardware Discovery & Initialization.
     info!("[4/4] Discovering and initializing hardware...");
-    let rsdp_phys_addr = rsdp_virt_address.saturating_sub(hhdm_offset);
 
     // Delegate hardware specifics to the active architecture
-    arch::target::init::initialize_hardware(rsdp_phys_addr, rsdp_virt_address, hhdm_offset);
+    arch::target::init::initialize_hardware(rsdp_virt_address, hhdm_offset);
 
     // 7. System Ready!
     info!("========================================");

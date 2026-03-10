@@ -1,8 +1,9 @@
 use crate::{arch, sys};
 use acpi::aml::AmlError;
+use acpi::platform::PciConfigRegions;
 use acpi::{AcpiTables, Handle, PciAddress, PhysicalMapping};
 use core::ptr;
-use log::trace;
+use log::{error, trace};
 
 /// ACPI Handler is used to interact with the ACPI standard.
 ///
@@ -37,6 +38,33 @@ impl QuayAcpiHandler {
             .expect("MADT to be present");
 
         madt.get().local_apic_address as u64
+    }
+
+    /// Fetches the PCIe ECAM regions.
+    ///
+    /// This works on all architectures.
+    pub fn get_pci_regions(&self, rsdp_address: u64) -> PciConfigRegions {
+        let phys_addr = rsdp_address.saturating_sub(self.hhdm_offset);
+
+        let tables = unsafe {
+            match AcpiTables::from_rsdp(*self, phys_addr as usize) {
+                Ok(tables) => tables,
+                Err(error) => {
+                    error!("Failed to fetch ACPI tables: {:?}", error);
+                    panic!("Failed to fetch ACPI tables");
+                }
+            }
+        };
+
+        trace!("Fetching the MCFG (PCIe) Table...");
+
+        match PciConfigRegions::new(&tables) {
+            Ok(regions) => regions,
+            Err(error) => {
+                error!("Failed to fetch PCIe MCFG: {:?}", error);
+                panic!("Failed to fetch PCIe MCFG");
+            }
+        }
     }
 }
 
